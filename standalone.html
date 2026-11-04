@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RotasiLab — Rotasi (Perputaran) Transformasi Geometri</title>
+<meta name="description" content="Aplikasi edukasi interaktif rotasi (perputaran) dalam transformasi geometri: visualizer bidang Kartesius, matriks dinamis, kalkulator step-by-step, dan kuis." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3.5-7.1'/%3E%3Cpath d='M21 3v6h-6'/%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        },
+        keyframes: {
+          floatIn: {
+            '0%': { opacity: '0', transform: 'translateY(10px)' },
+            '100%': { opacity: '1', transform: 'translateY(0)' },
+          },
+          pop: {
+            '0%': { transform: 'scale(.94)', opacity: '.4' },
+            '100%': { transform: 'scale(1)', opacity: '1' },
+          },
+        },
+        animation: {
+          floatIn: 'floatIn .5s ease-out both',
+          pop: 'pop .25s ease-out both',
+        },
+      },
+    },
+  };
+</script>
+
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem('rotasi-theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  })();
+</script>
+
+<style>
+  html { -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(99, 102, 241, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(99, 102, 241, 0.07) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .dark .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(129, 140, 248, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(129, 140, 248, 0.08) 1px, transparent 1px);
+  }
+
+  .katex { font-size: 1.04em; }
+  .katex-display { margin: 0; }
+  .katex-display > .katex { text-align: left; }
+  .dark .katex { color: #e2e8f0; }
+
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type='number'] { -moz-appearance: textfield; }
+
+  .range-rotasi {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    outline: none;
+  }
+  .dark .range-rotasi { background: #1e293b; }
+  .range-rotasi::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #4f46e5;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 10px rgba(79, 70, 229, 0.45);
+    cursor: pointer;
+    transition: transform 0.12s ease;
+  }
+  .range-rotasi::-webkit-slider-thumb:hover { transform: scale(1.08); }
+  .dark .range-rotasi::-webkit-slider-thumb { border-color: #0f172a; }
+  .range-rotasi::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4f46e5;
+    border: 3px solid #ffffff;
+    cursor: pointer;
+  }
+  .dark .range-rotasi::-moz-range-thumb { border-color: #0f172a; }
+  .range-rotasi:focus-visible { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.3); }
+
+  .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-200 selection:text-indigo-900 dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-indigo-500/30 dark:selection:text-white">
+<div id="root"></div>
+<noscript>
+  <div style="padding:24px;font-family:system-ui">
+    Aplikasi ini membutuhkan JavaScript. Silakan aktifkan JavaScript pada browser Anda.
+  </div>
+</noscript>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.462.0/dist/umd/lucide.js" crossorigin></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ============================================================
+   1. HELPER MATEMATIKA (aman terhadap floating point)
+   ============================================================ */
+const EPSILON = 1e-10;
+const DEG = Math.PI / 180;
+
+const trim = (value, precision = 4) => {
+  const rounded = Number(Number(value).toFixed(precision));
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+
+const safeCos = (deg) => {
+  const v = Math.cos(deg * DEG);
+  if (Math.abs(v) < EPSILON) return 0;
+  if (Math.abs(v - 1) < EPSILON) return 1;
+  if (Math.abs(v + 1) < EPSILON) return -1;
+  return trim(v);
+};
+
+const safeSin = (deg) => {
+  const v = Math.sin(deg * DEG);
+  if (Math.abs(v) < EPSILON) return 0;
+  if (Math.abs(v - 1) < EPSILON) return 1;
+  if (Math.abs(v + 1) < EPSILON) return -1;
+  return trim(v);
+};
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+const rotatePoint = (point, center, deg) => {
+  const cos = safeCos(deg);
+  const sin = safeSin(deg);
+  const dx = point.x - center.a;
+  const dy = point.y - center.b;
+  return {
+    x: trim(center.a + dx * cos - dy * sin),
+    y: trim(center.b + dx * sin + dy * cos),
+  };
+};
+
+const getShapeVertices = (shape, x, y) => {
+  if (shape === 'triangle') {
+    return [
+      { x: x - 2, y: y - 1 },
+      { x: x + 2, y: y - 1 },
+      { x: x, y: y + 2 },
+    ];
+  }
+  if (shape === 'square') {
+    return [
+      { x: x - 1.5, y: y - 1.5 },
+      { x: x + 1.5, y: y - 1.5 },
+      { x: x + 1.5, y: y + 1.5 },
+      { x: x - 1.5, y: y + 1.5 },
+    ];
+  }
+  return [{ x, y }];
+};
+
+const shapeLabels = (shape) => {
+  if (shape === 'triangle') return ['A', 'B', 'C'];
+  if (shape === 'square') return ['A', 'B', 'C', 'D'];
+  return ['P'];
+};
+
+const num = (v) => String(trim(v, 4));
+const numTex = (v) => (v < 0 ? `(${trim(v, 4)})` : `${trim(v, 4)}`);
+
+const angleText = (deg) => {
+  const v = trim(deg, 2);
+  return `${v}\u00B0`;
+};
+
+/* ============================================================
+   2. RENDER CANVAS KARTESIUS
+   ============================================================ */
+function niceStep(raw) {
+  if (!isFinite(raw) || raw <= 0) return 1;
+  const exp = Math.floor(Math.log10(raw));
+  const base = Math.pow(10, exp);
+  const f = raw / base;
+  const mult = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+  return mult * base;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+    return;
+  }
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function arrowHead(ctx, x, y, angle, size, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-size, size * 0.5);
+  ctx.lineTo(-size, -size * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawTag(ctx, text, x, y, color, dark, W, H) {
+  ctx.font = '600 11px "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 14;
+  const h = 20;
+  let left = x + 10;
+  let top = y - h - 10;
+  if (left + w > W - 6) left = x - w - 10;
+  if (left < 6) left = 6;
+  if (top < 6) top = y + 10;
+  if (top + h > H - 6) top = H - h - 6;
+
+  roundRect(ctx, left, top, w, h, 7);
+  ctx.fillStyle = dark ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.94)';
+  ctx.fill();
+  ctx.strokeStyle = color + '55';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, left + 7, top + h / 2 + 0.5);
+}
+
+function renderScene(ctx, W, H, cfg) {
+  const { x, y, a, b, shape, angle, dark } = cfg;
+  const C = dark
+    ? { grid: 'rgba(148,163,184,0.13)', axis: '#64748b', tick: '#94a3b8', axisLabel: '#94a3b8' }
+    : { grid: 'rgba(100,116,139,0.14)', axis: '#94a3b8', tick: '#94a3b8', axisLabel: '#64748b' };
+
+  const BLUE = '#3b82f6';
+  const RED = '#ef4444';
+  const AMBER = '#f59e0b';
+  const INDIGO = '#6366f1';
+
+  ctx.clearRect(0, 0, W, H);
+
+  const center = { a, b };
+  const verts = getShapeVertices(shape, x, y);
+  const bounds = [{ x: 0, y: 0 }];
+  verts.forEach((p) => {
+    bounds.push(p);
+    const r = Math.hypot(p.x - a, p.y - b);
+    bounds.push({ x: a - r, y: b - r }, { x: a + r, y: b + r });
+  });
+
+  let minX = Math.min(...bounds.map((p) => p.x));
+  let maxX = Math.max(...bounds.map((p) => p.x));
+  let minY = Math.min(...bounds.map((p) => p.y));
+  let maxY = Math.max(...bounds.map((p) => p.y));
+
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
+  const span = Math.max(maxX - minX, maxY - minY, 5) * 1.35;
+
+  const scale = Math.min(W, H) / span;
+  const originX = W / 2 - midX * scale;
+  const originY = H / 2 + midY * scale;
+
+  const px = (X) => originX + X * scale;
+  const py = (Y) => originY - Y * scale;
+
+  const step = niceStep(span / 8);
+  const xMinWorld = (0 - originX) / scale;
+  const xMaxWorld = (W - originX) / scale;
+  const yMinWorld = (originY - H) / scale;
+  const yMaxWorld = originY / scale;
+
+  /* Grid */
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = C.grid;
+  for (let i = Math.ceil(xMinWorld / step); i * step <= xMaxWorld; i++) {
+    const X = px(i * step);
+    ctx.beginPath();
+    ctx.moveTo(X, 0);
+    ctx.lineTo(X, H);
+    ctx.stroke();
+  }
+  for (let i = Math.ceil(yMinWorld / step); i * step <= yMaxWorld; i++) {
+    const Y = py(i * step);
+    ctx.beginPath();
+    ctx.moveTo(0, Y);
+    ctx.lineTo(W, Y);
+    ctx.stroke();
+  }
+
+  /* Axes */
+  const ox = px(0);
+  const oy = py(0);
+  ctx.strokeStyle = C.axis;
+  ctx.lineWidth = 1.5;
+  if (ox >= 0 && ox <= W) {
+    ctx.beginPath();
+    ctx.moveTo(ox, 0);
+    ctx.lineTo(ox, H);
+    ctx.stroke();
+  }
+  if (oy >= 0 && oy <= H) {
+    ctx.beginPath();
+    ctx.moveTo(0, oy);
+    ctx.lineTo(W, oy);
+    ctx.stroke();
+  }
+
+  /* Tick labels */
+  const showLabels = step * scale >= 30;
+  if (showLabels) {
+    ctx.font = '500 10px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillStyle = C.tick;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelY = clamp(oy + 5, 3, H - 16);
+    for (let i = Math.ceil(xMinWorld / step); i * step <= xMaxWorld; i++) {
+      if (i === 0) continue;
+      ctx.fillText(num(i * step), px(i * step), labelY);
+    }
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const labelX = clamp(ox - 6, 26, W - 4);
+    for (let i = Math.ceil(yMinWorld / step); i * step <= yMaxWorld; i++) {
+      if (i === 0) continue;
+      ctx.fillText(num(i * step), labelX, py(i * step));
+    }
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('0', clamp(ox - 5, 8, W - 4), clamp(oy + 4, 3, H - 14));
+  }
+
+  /* Axis names */
+  ctx.fillStyle = C.axisLabel;
+  ctx.font = '600 12px "Plus Jakarta Sans", system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  if (oy >= 0 && oy <= H) ctx.fillText('x', W - 8, clamp(oy - 6, 16, H - 4));
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  if (ox >= 0 && ox <= W) ctx.fillText('y', clamp(ox + 8, 4, W - 16), 6);
+
+  /* Proyeksi & busur */
+  const p0 = verts[0];
+  const cxPx = px(a);
+  const cyPx = py(b);
+  const p0x = px(p0.x);
+  const p0y = py(p0.y);
+  const radiusPx = Math.hypot(p0x - cxPx, p0y - cyPx);
+
+  const rotatedAnimated = verts.map((p) => rotatePoint(p, center, angle));
+  const q0 = rotatedAnimated[0];
+
+  ctx.save();
+  ctx.setLineDash([6, 6]);
+  ctx.lineWidth = 1.3;
+  ctx.strokeStyle = 'rgba(59,130,246,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(cxPx, cyPx);
+  ctx.lineTo(p0x, p0y);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(cxPx, cyPx);
+  ctx.lineTo(px(q0.x), py(q0.y));
+  ctx.stroke();
+  ctx.restore();
+
+  if (radiusPx > 10 && Math.abs(angle) > 0.4) {
+    const startCart = Math.atan2(p0.y - b, p0.x - a);
+    const startCanvas = -startCart;
+    const endCanvas = startCanvas - angle * DEG;
+
+    ctx.beginPath();
+    ctx.arc(cxPx, cyPx, radiusPx, startCanvas, endCanvas, angle > 0);
+    ctx.strokeStyle = 'rgba(99,102,241,0.65)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const dir = angle > 0 ? 1 : -1;
+    const aEnd = endCanvas;
+    const aPrev = aEnd + dir * 0.08;
+    const ex = cxPx + radiusPx * Math.cos(aEnd);
+    const ey = cyPx + radiusPx * Math.sin(aEnd);
+    const pvx = cxPx + radiusPx * Math.cos(aPrev);
+    const pvy = cyPx + radiusPx * Math.sin(aPrev);
+    arrowHead(ctx, ex, ey, Math.atan2(ey - pvy, ex - pvx), 8, 'rgba(99,102,241,0.95)');
+
+    /* Wedge sudut di pusat */
+    const wedgeR = clamp(radiusPx * 0.32, 22, 46);
+    ctx.beginPath();
+    ctx.moveTo(cxPx, cyPx);
+    ctx.arc(cxPx, cyPx, wedgeR, startCanvas, endCanvas, angle > 0);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(99,102,241,0.10)';
+    ctx.fill();
+
+    const mid = startCanvas - (angle * DEG) / 2;
+    ctx.font = '600 12px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillStyle = dark ? '#a5b4fc' : '#4f46e5';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      angleText(angle),
+      clamp(cxPx + (wedgeR + 18) * Math.cos(mid), 30, W - 30),
+      clamp(cyPx + (wedgeR + 18) * Math.sin(mid), 14, H - 14)
+    );
+  }
+
+  /* Titik/bangun */
+  const labels = shapeLabels(shape);
+
+  const drawShape = (points, stroke, fill, prime) => {
+    if (points.length > 1) {
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const X = px(p.x);
+        const Y = py(p.y);
+        if (i === 0) ctx.moveTo(X, Y);
+        else ctx.lineTo(X, Y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    points.forEach((p, i) => {
+      const X = px(p.x);
+      const Y = py(p.y);
+      ctx.beginPath();
+      ctx.arc(X, Y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = stroke;
+      ctx.fill();
+      ctx.strokeStyle = dark ? '#0f172a' : '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const label = prime ? labels[i] + '\u2032' : labels[i];
+      const text = shape === 'point' ? `${label}(${num(p.x)}, ${num(p.y)})` : label;
+      drawTag(ctx, text, X, Y, stroke, dark, W, H);
+    });
+  };
+
+  drawShape(verts, BLUE, 'rgba(59,130,246,0.13)', false);
+  drawShape(rotatedAnimated, RED, 'rgba(239,68,68,0.13)', true);
+
+  /* Pusat rotasi */
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cxPx, cyPx, 7, 0, Math.PI * 2);
+  ctx.fillStyle = dark ? 'rgba(245,158,11,0.22)' : 'rgba(245,158,11,0.18)';
+  ctx.fill();
+  ctx.strokeStyle = AMBER;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cxPx - 11, cyPx);
+  ctx.lineTo(cxPx + 11, cyPx);
+  ctx.moveTo(cxPx, cyPx - 11);
+  ctx.lineTo(cxPx, cyPx + 11);
+  ctx.strokeStyle = AMBER;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  if (a === 0 && b === 0) {
+    ctx.font = '600 11px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillStyle = dark ? '#fbbf24' : '#b45309';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('O(0, 0)', clamp(cxPx + 12, 4, W - 60), clamp(cyPx + 10, 4, H - 16));
+  } else {
+    drawTag(ctx, `Pusat (${num(a)}, ${num(b)})`, cxPx, cyPx, AMBER, dark, W, H);
+  }
+}
+
+/* ============================================================
+   3. KOMPONEN DASAR
+   ============================================================ */
+const toReactAttrs = (attrs) => {
+  const out = {};
+  Object.keys(attrs || {}).forEach((key) => {
+    if (key.startsWith('data-') || key.startsWith('aria-')) {
+      out[key] = attrs[key];
+    } else {
+      out[key.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = attrs[key];
+    }
+  });
+  return out;
+};
+
+function Icon({ name, size = 18, className = '', strokeWidth = 2 }) {
+  const lib = (window.lucide && window.lucide.icons) || {};
+  const node = lib[name];
+  let children = null;
+  if (Array.isArray(node)) {
+    children = node[0] === 'svg' && Array.isArray(node[2]) ? node[2] : node;
+  } else if (node && Array.isArray(node.iconNode)) {
+    children = node.iconNode;
+  }
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {children
+        ? children.map((child, i) =>
+            Array.isArray(child) ? React.createElement(child[0], { key: i, ...toReactAttrs(child[1]) }) : null
+          )
+        : null}
+    </svg>
+  );
+}
+
+function Tex({ tex, block = false, className = '' }) {
+  const html = useMemo(() => {
+    try {
+      return window.katex.renderToString(tex, {
+        throwOnError: false,
+        displayMode: block,
+        output: 'html',
+        strict: false,
+      });
+    } catch (e) {
+      return tex;
+    }
+  }, [tex, block]);
+  return (
+    <div
+      className={(block ? 'overflow-x-auto scrollbar-thin py-1 ' : 'inline-block ') + className}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function NumberField({ label, value, onChange, min = -99, max = 99, step = 1 }) {
+  const [text, setText] = useState(() => String(value));
+
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        {label}
+      </span>
+      <input
+        type="number"
+        inputMode="decimal"
+        step={step}
+        value={text}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          const parsed = parseFloat(raw);
+          if (!Number.isNaN(parsed)) onChange(clamp(Number(parsed.toFixed(2)), min, max));
+        }}
+        onBlur={() => {
+          const parsed = parseFloat(text);
+          if (text.trim() === '' || Number.isNaN(parsed)) setText(String(value));
+        }}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500"
+      />
+    </label>
+  );
+}
+
+function SectionHeading({ eyebrow, title, description, icon }) {
+  return (
+    <div className="mx-auto mb-10 max-w-2xl text-center">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
+        <Icon name={icon} size={13} />
+        {eyebrow}
+      </span>
+      <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{title}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-500 sm:text-base dark:text-slate-400">{description}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   4. CANVAS + PANEL KONTROL
+   ============================================================ */
+function RotationCanvas({ params, dark }) {
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const paramRef = useRef(null);
+  const animRef = useRef(params.angle * params.direction);
+  const dirtyRef = useRef(true);
+
+  const target = params.angle * params.direction;
+
+  useEffect(() => {
+    paramRef.current = { ...params, target, dark };
+    dirtyRef.current = true;
+  }, [params, dark]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let raf;
+    let lastW = 0;
+    let lastH = 0;
+
+    const draw = () => {
+      const p = paramRef.current;
+      if (!p || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const W = Math.max(220, rect.width);
+      const H = Math.max(220, rect.height);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      if (lastW !== W || lastH !== H) {
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        lastW = W;
+        lastH = H;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderScene(ctx, W, H, { ...p, angle: animRef.current });
+    };
+
+    const tick = () => {
+      const p = paramRef.current;
+      if (p) {
+        const diff = p.target - animRef.current;
+        if (Math.abs(diff) > 0.02) {
+          animRef.current += diff * 0.18;
+          dirtyRef.current = true;
+        } else if (animRef.current !== p.target) {
+          animRef.current = p.target;
+          dirtyRef.current = true;
+        }
+      }
+      if (dirtyRef.current) {
+        draw();
+        dirtyRef.current = false;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const ro = new ResizeObserver(() => {
+      dirtyRef.current = true;
+    });
+    if (wrapRef.current) ro.observe(wrapRef.current);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-3 sm:px-5 dark:border-slate-800">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+            <Icon name="Crosshair" size={15} />
+          </span>
+          Bidang Kartesius
+        </div>
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            θ = {angleText(target)}
+          </span>
+          <span className="hidden rounded-lg bg-indigo-50 px-2 py-1 text-indigo-600 sm:inline dark:bg-indigo-500/15 dark:text-indigo-300">
+            {target >= 0 ? 'berlawanan jarum jam' : 'searah jarum jam'}
+          </span>
+        </div>
+      </div>
+
+      <div ref={wrapRef} className="relative h-[330px] w-full sm:h-[420px] lg:h-[470px]">
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" role="img" aria-label="Visualisasi rotasi titik pada bidang kartesius" />
+
+        <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+            <span className="h-2 w-2 rounded-full bg-blue-500" /> Bangun awal
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+            <span className="h-2 w-2 rounded-full bg-red-500" /> Bayangan
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+            <span className="h-2 w-2 rounded-full bg-amber-500" /> Pusat
+          </span>
+        </div>
+
+        <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-[10px] font-medium text-slate-500 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+          Geser slider sudut untuk melihat animasi perputaran
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SHAPES = [
+  { id: 'point', label: 'Titik P' },
+  { id: 'triangle', label: 'Segitiga ABC' },
+  { id: 'square', label: 'Persegi ABCD' },
+];
+
+function ControlPanel({ params, onChange }) {
+  const effective = params.angle * params.direction;
+  const result = rotatePoint({ x: params.x, y: params.y }, { a: params.a, b: params.b }, effective);
+
+  return (
+    <div className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Objek yang dirotasi</p>
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+          {SHAPES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onChange({ shape: s.id })}
+              className={
+                'rounded-lg px-2 py-2 text-[11px] font-bold transition sm:text-xs ' +
+                (params.shape === s.id
+                  ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+              }
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Titik awal P(x, y)</p>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="x" value={params.x} onChange={(v) => onChange({ x: v })} />
+          <NumberField label="y" value={params.y} onChange={(v) => onChange({ y: v })} />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pusat rotasi (a, b)</p>
+          <button
+            type="button"
+            onClick={() => onChange({ a: 0, b: 0 })}
+            className="rounded-md border border-slate-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
+          >
+            preset O(0,0)
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="a" value={params.a} onChange={(v) => onChange({ a: v })} />
+          <NumberField label="b" value={params.b} onChange={(v) => onChange({ b: v })} />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 flex items-end justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Sudut rotasi θ</p>
+          <span className="font-mono text-lg font-bold text-indigo-600 dark:text-indigo-300">{angleText(params.angle)}</span>
+        </div>
+        <input
+          type="range"
+          min="-360"
+          max="360"
+          step="1"
+          value={params.angle}
+          onChange={(e) => onChange({ angle: Number(e.target.value) })}
+          className="range-rotasi mt-2"
+          aria-label="Sudut rotasi dalam derajat"
+        />
+        <div className="mt-1 flex justify-between font-mono text-[10px] text-slate-400 dark:text-slate-500">
+          <span>-360°</span>
+          <span>0°</span>
+          <span>+360°</span>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Arah perputaran</p>
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => onChange({ direction: 1 })}
+            className={
+              'flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition ' +
+              (params.direction === 1
+                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+            }
+          >
+            <Icon name="RotateCcw" size={13} /> Berlawanan (+θ)
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ direction: -1 })}
+            className={
+              'flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition ' +
+              (params.direction === -1
+                ? 'bg-white text-rose-600 shadow-sm dark:bg-slate-950 dark:text-rose-300'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+            }
+          >
+            <Icon name="RotateCw" size={13} /> Searah (−θ)
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Preset sudut istimewa</p>
+        <div className="grid grid-cols-4 gap-2">
+          {[90, 180, 270, -90].map((deg) => (
+            <button
+              key={deg}
+              type="button"
+              onClick={() => onChange({ angle: deg, direction: 1 })}
+              className={
+                'rounded-lg border px-1 py-2 font-mono text-xs font-bold transition ' +
+                (params.angle === deg && params.direction === 1
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
+                  : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-500/50')
+              }
+            >
+              {deg > 0 ? '+' : ''}{deg}°
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-3.5 dark:border-indigo-500/20 dark:from-indigo-500/10 dark:to-violet-500/10">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-300">Hasil bayangan</p>
+        <p className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-200">
+          P({num(params.x)}, {num(params.y)}) → P′({num(result.x)}, {num(result.y)})
+        </p>
+        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+          Rotasi {angleText(Math.abs(effective))} {effective >= 0 ? 'berlawanan' : 'searah'} jarum jam terhadap ({num(params.a)}, {num(params.b)})
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   5. TEORI & MATRIKS DINAMIS
+   ============================================================ */
+const CHEATS = [
+  { deg: 90, cos: '0', sin: '1', matrix: String.raw`\begin{pmatrix}0 & -1\\ 1 & 0\end{pmatrix}`, map: String.raw`(-y,\; x)` },
+  { deg: 180, cos: '-1', sin: '0', matrix: String.raw`\begin{pmatrix}-1 & 0\\ 0 & -1\end{pmatrix}`, map: String.raw`(-x,\; -y)` },
+  { deg: 270, cos: '0', sin: '-1', matrix: String.raw`\begin{pmatrix}0 & 1\\ -1 & 0\end{pmatrix}`, map: String.raw`(y,\; -x)` },
+  { deg: -90, cos: '0', sin: '-1', matrix: String.raw`\begin{pmatrix}0 & 1\\ -1 & 0\end{pmatrix}`, map: String.raw`(y,\; -x)` },
+  { deg: -180, cos: '-1', sin: '0', matrix: String.raw`\begin{pmatrix}-1 & 0\\ 0 & -1\end{pmatrix}`, map: String.raw`(-x,\; -y)` },
+  { deg: -270, cos: '0', sin: '1', matrix: String.raw`\begin{pmatrix}0 & -1\\ 1 & 0\end{pmatrix}`, map: String.raw`(-y,\; x)` },
+];
+
+function TheorySection({ params }) {
+  const effective = params.angle * params.direction;
+  const cos = safeCos(effective);
+  const sin = safeSin(effective);
+  const result = rotatePoint({ x: params.x, y: params.y }, { a: params.a, b: params.b }, effective);
+
+  const genericOO = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix} \begin{pmatrix} x \\ y \end{pmatrix}`;
+  const genericCenter = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix} \begin{pmatrix} x-a \\ y-b \end{pmatrix} + \begin{pmatrix} a \\ b \end{pmatrix}`;
+
+  const numericOO = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} ${cos} & ${trim(-sin)} \\ ${sin} & ${cos} \end{pmatrix} \begin{pmatrix} ${numTex(params.x)} \\ ${numTex(params.y)} \end{pmatrix} = \begin{pmatrix} ${numTex(result.x)} \\ ${numTex(result.y)} \end{pmatrix}`;
+
+  const innerX = trim(params.x - params.a);
+  const innerY = trim(params.y - params.b);
+  const numericCenter = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} ${cos} & ${trim(-sin)} \\ ${sin} & ${cos} \end{pmatrix} \begin{pmatrix} ${numTex(innerX)} \\ ${numTex(innerY)} \end{pmatrix} + \begin{pmatrix} ${numTex(params.a)} \\ ${numTex(params.b)} \end{pmatrix} = \begin{pmatrix} ${numTex(result.x)} \\ ${numTex(result.y)} \end{pmatrix}`;
+
+  return (
+    <section id="teori" className="scroll-mt-28 border-t border-slate-200/70 py-16 dark:border-slate-800/80">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          icon="BookOpen"
+          eyebrow="Teori & Rumus"
+          title="Matriks rotasi yang ikut berubah"
+          description="Angka pada matriks di bawah mengikuti slider di visualizer. Ubah sudut atau pusat rotasi, lalu lihat bagaimana matriksnya berevolusi."
+        />
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Pusat di O(0, 0)</h3>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+                Kasus dasar
+              </span>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">
+              <Tex tex={genericOO} block className="text-slate-800 dark:text-slate-100" />
+            </div>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Substitusi θ = {angleText(effective)} dan P({num(params.x)}, {num(params.y)})
+            </p>
+            <div className="mt-2 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-3 py-3 dark:border-indigo-500/20 dark:bg-indigo-500/5">
+              <Tex tex={numericOO} block className="text-indigo-900 dark:text-indigo-100" />
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              Nilai cos θ = <span className="font-mono font-semibold">{cos}</span> dan sin θ ={' '}
+              <span className="font-mono font-semibold">{sin}</span>. Karena itu matriksnya menjadi bilangan bulat untuk
+              sudut kelipatan 90°.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                Pusat di P(a, b) = ({num(params.a)}, {num(params.b)})
+              </h3>
+              <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
+                Umum
+              </span>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">
+              <Tex tex={genericCenter} block className="text-slate-800 dark:text-slate-100" />
+            </div>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Substitusi nilai saat ini
+            </p>
+            <div className="mt-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-500/20 dark:bg-violet-500/5">
+              <Tex tex={numericCenter} block className="text-violet-900 dark:text-violet-100" />
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              {params.a === 0 && params.b === 0
+                ? 'Pusat saat ini (0, 0), sehingga rumus umum ini tepat sama dengan kasus pertama.'
+                : 'Geser titik pusat untuk melihat bahwa bentuk matriksnya tetap, hanya offset (a, b) yang berubah.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
+                <Icon name="Lightbulb" size={15} />
+              </span>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Cheat Sheet Sudut Istimewa</h3>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Sudut positif = berlawanan arah jarum jam
+            </p>
+          </div>
+
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full min-w-[680px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+                  <th className="px-5 py-3 font-bold">Sudut θ</th>
+                  <th className="px-5 py-3 font-bold">cos θ</th>
+                  <th className="px-5 py-3 font-bold">sin θ</th>
+                  <th className="px-5 py-3 font-bold">Matriks rotasi</th>
+                  <th className="px-5 py-3 font-bold">(x, y) → (x′, y′)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CHEATS.map((row) => (
+                  <tr
+                    key={row.deg}
+                    className={
+                      'border-b border-slate-100 transition last:border-0 dark:border-slate-800/70 ' +
+                      (row.deg === effective
+                        ? 'bg-indigo-50/70 dark:bg-indigo-500/10'
+                        : 'hover:bg-slate-50/70 dark:hover:bg-slate-950/30')
+                    }
+                  >
+                    <td className="px-5 py-3 font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {row.deg > 0 ? '+' : ''}{row.deg}°
+                    </td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{row.cos}</td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{row.sin}</td>
+                    <td className="px-5 py-3">
+                      <Tex tex={row.matrix} />
+                    </td>
+                    <td className="px-5 py-3">
+                      <Tex tex={row.map} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   6. KALKULATOR STEP-BY-STEP
+   ============================================================ */
+function StepCard({ step, title, description, children }) {
+  return (
+    <div className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="mb-3 flex items-start gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white shadow-md shadow-indigo-600/30">
+          {step}
+        </span>
+        <div>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">{children}</div>
+    </div>
+  );
+}
+
+function SolverSection() {
+  const [form, setForm] = useState({ x: 3, y: 2, a: 0, b: 0, angle: 90 });
+  const setField = (patch) => setForm((prev) => ({ ...prev, ...patch }));
+
+  const { x, y, a, b, angle } = form;
+  const cos = safeCos(angle);
+  const sin = safeSin(angle);
+  const dx = trim(x - a);
+  const dy = trim(y - b);
+  const innerX = trim(dx * cos - dy * sin);
+  const innerY = trim(dx * sin + dy * cos);
+  const finalX = trim(a + innerX);
+  const finalY = trim(b + innerY);
+  const radiusBefore = trim(Math.hypot(dx, dy), 3);
+  const radiusAfter = trim(Math.hypot(finalX - a, finalY - b), 3);
+
+  const thetaTex = angle < 0 ? String.raw`\left(${angle}^\circ\right)` : String.raw`${angle}^\circ`;
+
+  const step1 = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} \cos ${thetaTex} & -\sin ${thetaTex} \\ \sin ${thetaTex} & \cos ${thetaTex} \end{pmatrix} \begin{pmatrix} ${numTex(x)} - ${numTex(a)} \\ ${numTex(y)} - ${numTex(b)} \end{pmatrix} + \begin{pmatrix} ${numTex(a)} \\ ${numTex(b)} \end{pmatrix}`;
+
+  const step2 = String.raw`\cos ${thetaTex} = ${cos} \qquad \sin ${thetaTex} = ${sin} \qquad \begin{pmatrix} x-a \\ y-b \end{pmatrix} = \begin{pmatrix} ${numTex(dx)} \\ ${numTex(dy)} \end{pmatrix}`;
+
+  const step3 = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} ${cos} & ${trim(-sin)} \\ ${sin} & ${cos} \end{pmatrix} \begin{pmatrix} ${numTex(dx)} \\ ${numTex(dy)} \end{pmatrix} + \begin{pmatrix} ${numTex(a)} \\ ${numTex(b)} \end{pmatrix} = \begin{pmatrix} ${numTex(innerX)} \\ ${numTex(innerY)} \end{pmatrix} + \begin{pmatrix} ${numTex(a)} \\ ${numTex(b)} \end{pmatrix}`;
+
+  const step4 = String.raw`P'(${numTex(finalX)},\; ${numTex(finalY)})`;
+
+  return (
+    <section id="kalkulator" className="scroll-mt-28 border-t border-slate-200/70 bg-white/60 py-16 dark:border-slate-800/80 dark:bg-slate-900/20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          icon="Calculator"
+          eyebrow="Kalkulator Step-by-Step"
+          title="Buktikan sendiri, langkah demi langkah"
+          description="Masukkan nilai x, y, a, b, dan θ. Kalkulator ini menampilkan seluruh alur komputasi matriks tanpa lompatan."
+        />
+
+        <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
+          <div className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <Icon name="Calculator" size={15} />
+              </span>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Data Soal</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="x (titik awal)" value={x} onChange={(v) => setField({ x: v })} />
+              <NumberField label="y (titik awal)" value={y} onChange={(v) => setField({ y: v })} />
+              <NumberField label="a (pusat)" value={a} onChange={(v) => setField({ a: v })} />
+              <NumberField label="b (pusat)" value={b} onChange={(v) => setField({ b: v })} />
+            </div>
+
+            <div className="mt-4">
+              <NumberField label="θ (derajat)" value={angle} min={-360} max={360} onChange={(v) => setField({ angle: v })} />
+              <div className="mt-2 grid grid-cols-4 gap-1.5">
+                {[90, 180, 270, -90].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setField({ angle: d })}
+                    className={
+                      'rounded-md border px-1 py-1.5 font-mono text-[11px] font-semibold transition ' +
+                      (angle === d
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
+                        : 'border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400')
+                    }
+                  >
+                    {d > 0 ? '+' : ''}{d}°
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-slate-50 p-3 dark:bg-slate-950/60">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Variabel terhitung</p>
+              <p className="mt-1.5 font-mono text-xs text-slate-600 dark:text-slate-300">
+                (x − a, y − b) = ({num(dx)}, {num(dy)})
+              </p>
+              <p className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-300">
+                cos θ = {cos}, sin θ = {sin}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 p-5 text-white shadow-lg shadow-indigo-600/25">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-100">Hasil akhir</p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                <span className="font-mono text-3xl font-bold">
+                  P′({num(finalX)}, {num(finalY)})
+                </span>
+                <span className="text-sm text-indigo-100">
+                  dari P({num(x)}, {num(y)}) diputar {angleText(angle)} terhadap ({num(a)}, {num(b)})
+                </span>
+              </div>
+            </div>
+
+            <StepCard
+              step="1"
+              title="Substitusi nilai ke matriks rotasi"
+              description="Titik digeser dulu relatif terhadap pusat, sehingga koordinat menjadi (x − a, y − b)."
+            >
+              <Tex tex={step1} block />
+            </StepCard>
+
+            <StepCard step="2" title="Evaluasi nilai trigonometri" description="Hitung cosinus dan sinus dari sudut θ, lalu sederhanakan komponen titik relatif.">
+              <Tex tex={step2} block />
+            </StepCard>
+
+            <StepCard
+              step="3"
+              title="Perkalian matriks 2 × 2"
+              description="Kalikan baris matriks dengan kolom vektor, kemudian tambahkan kembali offset pusat (a, b)."
+            >
+              <Tex tex={step3} block />
+              <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 sm:grid-cols-2 dark:border-slate-800 dark:text-slate-300">
+                <p className="font-mono">x′ = {cos}·({num(dx)}) + ({trim(-sin)})·({num(dy)}) + {num(a)} = {num(finalX)}</p>
+                <p className="font-mono">y′ = {sin}·({num(dx)}) + {cos}·({num(dy)}) + {num(b)} = {num(finalY)}</p>
+              </div>
+            </StepCard>
+
+            <StepCard step="4" title="Koordinat akhir bayangan" description="Rotasi tidak mengubah jarak titik terhadap pusat rotasi — inilah bukti hasilnya konsisten.">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <Tex tex={step4} block className="text-indigo-700 dark:text-indigo-200" />
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <p>
+                    Jarak P ke pusat = <span className="font-mono font-semibold">{radiusBefore}</span>
+                  </p>
+                  <p>
+                    Jarak P′ ke pusat = <span className="font-mono font-semibold">{radiusAfter}</span>
+                  </p>
+                </div>
+              </div>
+            </StepCard>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   7. KUIS & EVALUASI
+   ============================================================ */
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+function shuffle(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function nonZero(min, max) {
+  let v = 0;
+  let guard = 0;
+  while (v === 0 && guard++ < 40) v = randInt(min, max);
+  return v;
+}
+
+const keyOf = (p) => `${p.x},${p.y}`;
+
+function makeOptions(correct, candidates) {
+  const opts = [correct];
+  const seen = new Set([keyOf(correct)]);
+  for (const c of candidates) {
+    if (opts.length >= 4) break;
+    if (!c || !isFinite(c.x) || !isFinite(c.y) || seen.has(keyOf(c))) continue;
+    seen.add(keyOf(c));
+    opts.push(c);
+  }
+  let guard = 0;
+  while (opts.length < 4 && guard++ < 60) {
+    const cand = { x: correct.x + randInt(-6, 6), y: correct.y + randInt(-6, 6) };
+    if (seen.has(keyOf(cand))) continue;
+    seen.add(keyOf(cand));
+    opts.push(cand);
+  }
+  return shuffle(opts);
+}
+
+function packQuestion(base, correct) {
+  const options = makeOptions(correct, base.wrongs);
+  return {
+    ...base,
+    options,
+    answerIndex: options.findIndex((o) => keyOf(o) === keyOf(correct)),
+    correct,
+  };
+}
+
+function qOriginIstimewa() {
+  const angle = pick([90, 270]);
+  const x = nonZero(-5, 5);
+  const y = nonZero(-5, 5);
+  const correct = rotatePoint({ x, y }, { a: 0, b: 0 }, angle);
+  const mapTex = angle === 90 ? String.raw`(x,\;y) \mapsto (-y,\;x)` : String.raw`(x,\;y) \mapsto (y,\;-x)`;
+  return packQuestion(
+    {
+      prompt: `Titik P(${x}, ${y}) dirotasikan sebesar ${angle}° berlawanan arah jarum jam terhadap pusat O(0, 0). Koordinat bayangan P′ adalah …`,
+      answerTex: mapTex,
+      explanation: `Substitusi langsung menghasilkan P′(${correct.x}, ${correct.y}).`,
+      wrongs: [
+        { x: y, y: x },
+        { x: -x, y: -y },
+        { x: -y, y: -x },
+        { x: x, y: -y },
+      ],
+      params: { x, y, a: 0, b: 0, angle, direction: 1, shape: 'point' },
+    },
+    correct
+  );
+}
+
+function qOrigin180() {
+  const x = nonZero(-6, 6);
+  const y = nonZero(-6, 6);
+  const correct = { x: -x, y: -y };
+  return packQuestion(
+    {
+      prompt: `Titik P(${x}, ${y}) dirotasikan sebesar 180° terhadap pusat O(0, 0). Bayangan P′ terletak di …`,
+      answerTex: String.raw`(x,\;y) \mapsto (-x,\;-y)`,
+      explanation: `Rotasi setengah putaran membalik kedua tanda: P′(${correct.x}, ${correct.y}).`,
+      wrongs: [
+        { x: -y, y: x },
+        { x: y, y: -x },
+        { x: -x, y: y },
+        { x: x, y: -y },
+      ],
+      params: { x, y, a: 0, b: 0, angle: 180, direction: 1, shape: 'point' },
+    },
+    correct
+  );
+}
+
+function qPusat() {
+  const angle = pick([90, 180, 270]);
+  const a = nonZero(-4, 4);
+  const b = nonZero(-4, 4);
+  let x = nonZero(-5, 5);
+  let y = nonZero(-5, 5);
+  if (x === a && y === b) x = a + 2;
+
+  const center = { a, b };
+  const correct = rotatePoint({ x, y }, center, angle);
+  const aboutOrigin = rotatePoint({ x, y }, { a: 0, b: 0 }, angle);
+  const forgotCenter = {
+    x: trim((x - a) * safeCos(angle) - (y - b) * safeSin(angle)),
+    y: trim((x - a) * safeSin(angle) + (y - b) * safeCos(angle)),
+  };
+  const swapped = { x: correct.y, y: correct.x };
+
+  return packQuestion(
+    {
+      prompt: `Titik P(${x}, ${y}) dirotasikan sebesar ${angle}° berlawanan arah jarum jam terhadap pusat (${a}, ${b}). Koordinat P′ adalah …`,
+      answerTex: String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} \cos ${angle}^\circ & -\sin ${angle}^\circ \\ \sin ${angle}^\circ & \cos ${angle}^\circ \end{pmatrix} \begin{pmatrix} ${x} - ${numTex(a)} \\ ${y} - ${numTex(b)} \end{pmatrix} + \begin{pmatrix} ${numTex(a)} \\ ${numTex(b)} \end{pmatrix}`,
+      explanation: `Hasil akhirnya P′(${correct.x}, ${correct.y}). Jangan lupa menambahkan kembali koordinat pusat setelah matriks dikalikan.`,
+      wrongs: [forgotCenter, aboutOrigin, swapped],
+      params: { x, y, a, b, angle, direction: 1, shape: 'point' },
+    },
+    correct
+  );
+}
+
+function qBangunDatar() {
+  const angle = pick([90, 180, 270]);
+  const bx = nonZero(-3, 3);
+  const by = nonZero(-3, 3);
+  const A = { x: bx - 2, y: by - 1 };
+  const B = { x: bx + 2, y: by - 1 };
+  const C = { x: bx, y: by + 2 };
+  const center = { a: 0, b: 0 };
+  const correct = rotatePoint(A, center, angle);
+  const Bp = rotatePoint(B, center, angle);
+  const Cp = rotatePoint(C, center, angle);
+  const mapTex =
+    angle === 90
+      ? String.raw`(x,\;y) \mapsto (-y,\;x)`
+      : angle === 180
+      ? String.raw`(x,\;y) \mapsto (-x,\;-y)`
+      : String.raw`(x,\;y) \mapsto (y,\;-x)`;
+
+  return packQuestion(
+    {
+      prompt: `Segitiga ABC dengan A(${A.x}, ${A.y}), B(${B.x}, ${B.y}), dan C(${C.x}, ${C.y}) dirotasikan sebesar ${angle}° berlawanan arah jarum jam terhadap O(0, 0). Koordinat titik A′ adalah …`,
+      answerTex: mapTex,
+      explanation: `Titik A(${A.x}, ${A.y}) dipetakan menjadi A′(${correct.x}, ${correct.y}); seluruh bangun ikut berputar kaku tanpa berubah bentuk.`,
+      wrongs: [Bp, Cp, { x: A.y, y: A.x }],
+      params: { x: bx, y: by, a: 0, b: 0, angle, direction: 1, shape: 'triangle' },
+    },
+    correct
+  );
+}
+
+function qSearahJarumJam() {
+  const angle = pick([90, 180]);
+  const x = nonZero(-5, 5);
+  const y = nonZero(-5, 5);
+  const effective = -angle;
+  const correct = rotatePoint({ x, y }, { a: 0, b: 0 }, effective);
+  const mapTex = angle === 90 ? String.raw`(x,\;y) \mapsto (y,\;-x)` : String.raw`(x,\;y) \mapsto (-x,\;-y)`;
+  const clockwise = rotatePoint({ x, y }, { a: 0, b: 0 }, angle);
+
+  return packQuestion(
+    {
+      prompt: `Titik P(${x}, ${y}) dirotasikan searah jarum jam sebesar ${angle}° terhadap pusat O(0, 0). Koordinat bayangan P′ adalah …`,
+      answerTex: mapTex,
+      explanation: `Rotasi searah jarum jam berarti sudutnya negatif (θ = ${effective}°), sehingga P′(${correct.x}, ${correct.y}).`,
+      wrongs: [clockwise, { x: -x, y: -y }, { x: y, y: x }],
+      params: { x, y, a: 0, b: 0, angle, direction: -1, shape: 'point' },
+    },
+    correct
+  );
+}
+
+const QUESTION_BUILDERS = [qOriginIstimewa, qOrigin180, qPusat, qBangunDatar, qSearahJarumJam];
+
+function buildQuiz() {
+  return shuffle(QUESTION_BUILDERS).map((builder, i) => {
+    const q = builder();
+    return { ...q, id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}` };
+  });
+}
+
+const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+
+function QuizSection({ onVisualize }) {
+  const [questions, setQuestions] = useState(buildQuiz);
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [finished, setFinished] = useState(false);
+
+  const question = questions[index];
+  const answered = selected !== null;
+  const isCorrect = answered && selected === question.answerIndex;
+  const score = answers.filter((a) => a.correct).length;
+
+  const choose = (i) => {
+    if (answered) return;
+    setSelected(i);
+    setAnswers((prev) => [...prev, { correct: i === question.answerIndex }]);
+  };
+
+  const next = () => {
+    if (index + 1 >= questions.length) {
+      setFinished(true);
+      return;
+    }
+    setIndex(index + 1);
+    setSelected(null);
+  };
+
+  const restart = () => {
+    setQuestions(buildQuiz());
+    setIndex(0);
+    setSelected(null);
+    setAnswers([]);
+    setFinished(false);
+  };
+
+  const scoreMessage = () => {
+    if (score === 5) return 'Sempurna! Pemahaman rotasimu sudah sangat kuat.';
+    if (score >= 4) return 'Bagus sekali! Tinggal sedikit lagi menuju sempurna.';
+    if (score >= 3) return 'Cukup baik. Ulangi bagian yang masih keliru, ya.';
+    return 'Semangat! Coba visualisasikan setiap soal di canvas agar lebih mudah dipahami.';
+  };
+
+  return (
+    <section id="kuis" className="scroll-mt-28 border-t border-slate-200/70 py-16 dark:border-slate-800/80">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          icon="GraduationCap"
+          eyebrow="Kuis & Evaluasi"
+          title="Uji pemahaman rotasimu"
+          description="Lima soal acak mencakup rotasi titik dan bangun datar. Jika jawabanmu keliru, buka pembuktiannya langsung di canvas."
+        />
+
+        {finished ? (
+          <div className="animate-floatIn rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+              <Icon name="GraduationCap" size={28} />
+            </div>
+            <h3 className="mt-4 text-2xl font-extrabold text-slate-900 dark:text-white">
+              Skor akhir: {score}/{questions.length}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">{scoreMessage()}</p>
+            <div className="mt-5 flex justify-center gap-2">
+              {questions.map((q, i) => (
+                <span
+                  key={q.id}
+                  className={
+                    'h-2.5 w-8 rounded-full ' +
+                    (answers[i] && answers[i].correct ? 'bg-emerald-500' : 'bg-rose-400')
+                  }
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={restart}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+            >
+              <Icon name="RefreshCw" size={16} /> Ulangi dengan soal baru
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-5 py-3.5 dark:border-slate-800">
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                Soal {index + 1} / {questions.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {questions.map((q, i) => (
+                    <span
+                      key={q.id}
+                      className={
+                        'h-1.5 w-6 rounded-full transition ' +
+                        (i < answers.length
+                          ? answers[i].correct
+                            ? 'bg-emerald-500'
+                            : 'bg-rose-400'
+                          : i === index
+                          ? 'bg-indigo-500'
+                          : 'bg-slate-200 dark:bg-slate-700')
+                      }
+                    />
+                  ))}
+                </div>
+                <span className="hidden font-mono text-xs text-slate-400 sm:inline dark:text-slate-500">
+                  skor {score}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6">
+              <p className="text-base font-semibold leading-relaxed text-slate-800 dark:text-slate-100">{question.prompt}</p>
+
+              <div className="mt-5 grid gap-2.5">
+                {question.options.map((opt, i) => {
+                  const isRight = i === question.answerIndex;
+                  const isPicked = i === selected;
+                  let style =
+                    'border-slate-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-indigo-50/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/5';
+                  if (answered && isRight) {
+                    style = 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:border-emerald-500/60 dark:bg-emerald-500/10 dark:text-emerald-200';
+                  } else if (answered && isPicked) {
+                    style = 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-200';
+                  } else if (answered) {
+                    style = 'border-slate-200 bg-white text-slate-400 opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500';
+                  }
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={answered}
+                      onClick={() => choose(i)}
+                      className={
+                        'flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ' + style
+                      }
+                    >
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-black/10 font-mono text-xs font-bold dark:border-white/20">
+                        {OPTION_LETTERS[i]}
+                      </span>
+                      <span className="font-mono text-sm font-semibold">
+                        ({num(opt.x)}, {num(opt.y)})
+                      </span>
+                      {answered && isRight && <Icon name="Check" size={16} className="ml-auto text-emerald-600 dark:text-emerald-400" />}
+                      {answered && isPicked && !isRight && <Icon name="X" size={16} className="ml-auto text-rose-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {answered && (
+                <div
+                  className={
+                    'mt-5 animate-pop rounded-2xl border p-4 ' +
+                    (isCorrect
+                      ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10'
+                      : 'border-rose-200 bg-rose-50/70 dark:border-rose-500/30 dark:bg-rose-500/10')
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        'grid h-6 w-6 place-items-center rounded-full text-white ' +
+                        (isCorrect ? 'bg-emerald-500' : 'bg-rose-500')
+                      }
+                    >
+                      <Icon name={isCorrect ? 'Check' : 'X'} size={14} strokeWidth={3} />
+                    </span>
+                    <p className={'text-sm font-bold ' + (isCorrect ? 'text-emerald-800 dark:text-emerald-200' : 'text-rose-800 dark:text-rose-200')}>
+                      {isCorrect ? 'Tepat sekali!' : `Belum tepat. Jawaban benar: (${num(question.correct.x)}, ${num(question.correct.y)})`}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 overflow-x-auto scrollbar-thin rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-950/50">
+                    <Tex tex={question.answerTex} block />
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{question.explanation}</p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {!isCorrect && (
+                      <button
+                        type="button"
+                        onClick={() => onVisualize(question.params)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-600/30 transition hover:bg-indigo-500"
+                      >
+                        <Icon name="Eye" size={15} /> Tampilkan di Canvas
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={next}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500/60"
+                    >
+                      {index + 1 >= questions.length ? 'Lihat hasil' : 'Soal berikutnya'}
+                      <Icon name="ArrowRight" size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   8. HEADER, HERO, FOOTER, APP
+   ============================================================ */
+const NAV_ITEMS = [
+  { id: 'visualizer', label: 'Visualizer', icon: 'Move' },
+  { id: 'teori', label: 'Teori & Rumus', icon: 'BookOpen' },
+  { id: 'kalkulator', label: 'Kalkulator', icon: 'Calculator' },
+  { id: 'kuis', label: 'Kuis', icon: 'GraduationCap' },
+];
+
+function Header({ dark, onToggleTheme }) {
+  return (
+    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-lg dark:border-slate-800/80 dark:bg-slate-950/80">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+        <a href="#visualizer" className="flex shrink-0 items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/30">
+            <Icon name="RotateCw" size={18} strokeWidth={2.4} />
+          </span>
+          <span className="leading-tight">
+            <span className="block text-sm font-extrabold tracking-tight text-slate-900 dark:text-white">RotasiLab</span>
+            <span className="hidden text-[10px] font-medium text-slate-500 sm:block dark:text-slate-400">
+              Transformasi Geometri
+            </span>
+          </span>
+        </a>
+
+        <nav className="ml-auto flex max-w-full items-center gap-1 overflow-x-auto scrollbar-thin">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-indigo-300"
+            >
+              <Icon name={item.icon} size={14} />
+              <span className="hidden md:inline">{item.label}</span>
+            </a>
+          ))}
+        </nav>
+
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={dark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
+          className="ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500/50"
+        >
+          <Icon name={dark ? 'Sun' : 'Moon'} size={17} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function Hero({ params, onChange, dark }) {
+  const target = params.angle * params.direction;
+  const result = rotatePoint({ x: params.x, y: params.y }, { a: params.a, b: params.b }, target);
+
+  return (
+    <section id="visualizer" className="relative scroll-mt-24 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_75%)]" />
+      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-300/25 blur-3xl dark:bg-indigo-600/15" />
+      <div className="pointer-events-none absolute -right-20 top-32 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl dark:bg-violet-600/15" />
+
+      <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 sm:pt-14 lg:px-8">
+        <div className="mx-auto mb-8 max-w-3xl text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
+            <Icon name="Sparkles" size={13} className="text-indigo-500" />
+            Matematika SMA/SMK · Transformasi Geometri
+          </span>
+          <h1 className="mt-4 text-3xl font-extrabold leading-[1.15] tracking-tight text-slate-900 sm:text-4xl lg:text-5xl dark:text-white">
+            Rotasi jadi{' '}
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
+              terlihat nyata
+            </span>
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base dark:text-slate-400">
+            Geser sudut, pindahkan pusat rotasi, dan pilih bangun datar. Setiap perubahan langsung memperlihatkan
+            bayangan, busur sudut, dan matriksnya secara real-time.
+          </p>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start">
+          <div className="space-y-4">
+            <RotationCanvas params={params} dark={dark} />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: 'Titik awal', value: `(${num(params.x)}, ${num(params.y)})`, tone: 'text-blue-600 dark:text-blue-300' },
+                { label: 'Pusat', value: `(${num(params.a)}, ${num(params.b)})`, tone: 'text-amber-600 dark:text-amber-300' },
+                { label: 'Sudut efektif', value: angleText(target), tone: 'text-indigo-600 dark:text-indigo-300' },
+                { label: 'Bayangan', value: `(${num(result.x)}, ${num(result.y)})`, tone: 'text-rose-600 dark:text-rose-300' },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.label}</p>
+                  <p className={'mt-0.5 font-mono text-sm font-bold ' + item.tone}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <ControlPanel params={params} onChange={onChange} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-slate-200/70 bg-white/70 py-8 dark:border-slate-800/80 dark:bg-slate-950/50">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600 text-white">
+            <Icon name="RotateCw" size={13} strokeWidth={2.4} />
+          </span>
+          <span>
+            <strong className="font-bold text-slate-700 dark:text-slate-200">RotasiLab</strong> — media belajar rotasi
+            interaktif.
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+          {['React', 'Tailwind CSS', 'KaTeX', 'HTML5 Canvas', 'Lucide'].map((t) => (
+            <span key={t} className="rounded-md border border-slate-200 px-2 py-1 dark:border-slate-800">
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function App() {
+  const [params, setParams] = useState({
+    x: 3,
+    y: 2,
+    a: 0,
+    b: 0,
+    angle: 90,
+    direction: 1,
+    shape: 'point',
+  });
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    try {
+      localStorage.setItem('rotasi-theme', dark ? 'dark' : 'light');
+    } catch (e) {}
+  }, [dark]);
+
+  const updateParams = useCallback((patch) => {
+    setParams((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const visualize = useCallback((next) => {
+    setParams({
+      x: next.x,
+      y: next.y,
+      a: next.a,
+      b: next.b,
+      angle: next.angle,
+      direction: next.direction,
+      shape: next.shape,
+    });
+    const el = document.getElementById('visualizer');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header dark={dark} onToggleTheme={() => setDark((d) => !d)} />
+      <main className="flex-1">
+        <Hero params={params} onChange={updateParams} dark={dark} />
+        <TheorySection params={params} />
+        <SolverSection />
+        <QuizSection onVisualize={visualize} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
