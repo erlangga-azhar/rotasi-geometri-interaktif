@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Moon,
   Move,
+  Palette,
   RotateCw,
   Sun,
   Wifi,
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'visualizer', label: 'Visualizer', icon: Move },
   { id: 'teori', label: 'Teori & Rumus', icon: BookOpen },
   { id: 'kalkulator', label: 'Kalkulator', icon: Calculator },
+  { id: 'konteks', label: 'Konteks', icon: Palette },
   { id: 'kuis', label: 'Kuis', icon: GraduationCap },
 ];
 

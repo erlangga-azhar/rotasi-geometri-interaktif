@@ -1,5 +1,6 @@
+import { useRef } from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
-import type { RotationState, ShapeType } from '../types/rotation';
+import type { CenterPoint, RotationState, ShapeType } from '../types/rotation';
 import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
 import NumberField from './NumberField';
 
@@ -22,6 +23,17 @@ const SHAPE_OPTIONS: ShapeOption[] = [
 function ControlPanel({ state, onChange }: ControlPanelProps) {
   const effective = state.angleDegree * state.direction;
   const result = rotatePoint(state.point, state.center, effective);
+  const isOrigin = state.center.a === 0 && state.center.b === 0;
+  const lastCustomCenter = useRef<CenterPoint>({ a: 2, b: 1 });
+
+  const selectOrigin = () => {
+    if (!isOrigin) lastCustomCenter.current = state.center;
+    onChange({ center: { a: 0, b: 0 } });
+  };
+
+  const selectCustom = () => {
+    if (isOrigin) onChange({ center: lastCustomCenter.current });
+  };
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
@@ -63,16 +75,37 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
       </div>
 
       <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Pusat rotasi (a, b)
-          </p>
+        <p className="field-label">Pusat rotasi</p>
+        <div
+          role="group"
+          aria-label="Jenis pusat rotasi"
+          className="mb-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
+        >
           <button
             type="button"
-            onClick={() => onChange({ center: { a: 0, b: 0 } })}
-            className="rounded-md border border-slate-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
+            onClick={selectOrigin}
+            aria-pressed={isOrigin}
+            className={
+              'rounded-lg px-2 py-1.5 font-mono text-[11px] font-bold transition ' +
+              (isOrigin
+                ? 'bg-white text-amber-600 shadow-sm dark:bg-slate-950 dark:text-amber-300'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+            }
           >
-            preset O(0,0)
+            O(0, 0)
+          </button>
+          <button
+            type="button"
+            onClick={selectCustom}
+            aria-pressed={!isOrigin}
+            className={
+              'rounded-lg px-2 py-1.5 font-mono text-[11px] font-bold transition ' +
+              (!isOrigin
+                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+            }
+          >
+            P(a, b)
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -87,6 +120,11 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
             onChange={(value) => onChange({ center: { ...state.center, b: value } })}
           />
         </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+          {isOrigin
+            ? 'Pusat di titik asal: 90° memetakan (x, y) → (−y, x).'
+            : 'Pusat kustom: geser ke (x − a, y − b), putar, lalu geser balik.'}
+        </p>
       </div>
 
       <div>

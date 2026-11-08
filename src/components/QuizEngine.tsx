@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Check, Eye, GraduationCap, RefreshCw, X } from 'lucide-react';
 import type { QuizQuestion, RotationState } from '../types/rotation';
 import { formatNumber } from '../utils/math';
 import { buildQuiz } from '../utils/quiz';
+import { loadQuizProgress, saveQuizProgress } from '../utils/quizProgress';
 import SectionHeading from './SectionHeading';
 import Tex from './Tex';
 
 interface QuizEngineProps {
-  onVisualize: (state: RotationState) => void;
+  onVisualize: (state: RotationState, questionIndex: number) => void;
 }
 
 interface AnswerRecord {
@@ -17,11 +18,16 @@ interface AnswerRecord {
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
 function QuizEngine({ onVisualize }: QuizEngineProps) {
-  const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuiz());
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
-  const [finished, setFinished] = useState(false);
+  const [restored] = useState(() => loadQuizProgress());
+  const [questions, setQuestions] = useState<QuizQuestion[]>(() => restored?.questions ?? buildQuiz());
+  const [index, setIndex] = useState(() => restored?.index ?? 0);
+  const [selected, setSelected] = useState<number | null>(() => restored?.selected ?? null);
+  const [answers, setAnswers] = useState<AnswerRecord[]>(() => restored?.answers ?? []);
+  const [finished, setFinished] = useState(() => restored?.finished ?? false);
+
+  useEffect(() => {
+    saveQuizProgress({ version: 1, questions, index, selected, answers, finished });
+  }, [questions, index, selected, answers, finished]);
 
   const question = questions[index];
   const answered = selected !== null;
@@ -218,10 +224,10 @@ function QuizEngine({ onVisualize }: QuizEngineProps) {
                     {!isCorrect && (
                       <button
                         type="button"
-                        onClick={() => onVisualize(question.params)}
+                        onClick={() => onVisualize(question.params, index)}
                         className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-600/30 transition hover:bg-indigo-500"
                       >
-                        <Eye size={15} /> Tampilkan di Canvas
+                        <Eye size={15} /> Lihat Visualisasi
                       </button>
                     )}
                     <button

@@ -404,6 +404,43 @@ function renderScene(
       clamp(centerX + (wedgeRadius + 18) * Math.cos(midAngle), 30, width - 30),
       clamp(centerY + (wedgeRadius + 18) * Math.sin(midAngle), 14, height - 14)
     );
+
+    /* Busur derajat: tick minor tiap 15°, tick mayor tiap 45° beserta label. */
+    if (radiusPx >= 34) {
+      const sweep = Math.abs(animatedAngle);
+      const directionSign = animatedAngle >= 0 ? 1 : -1;
+
+      ctx.save();
+      ctx.strokeStyle = dark ? 'rgba(165,180,252,0.8)' : 'rgba(79,70,229,0.6)';
+      ctx.fillStyle = dark ? '#c7d2fe' : '#4338ca';
+      ctx.font = '600 9px ui-monospace, SFMono-Regular, Consolas, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let tickDeg = 15; tickDeg <= sweep + 0.01; tickDeg += 15) {
+        const tickAngle = startCanvas - directionSign * tickDeg * DEG;
+        const major = tickDeg % 45 === 0;
+        const inner = radiusPx - (major ? 10 : 5);
+        const outer = radiusPx + (major ? 6 : 3);
+
+        ctx.lineWidth = major ? 1.6 : 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX + inner * Math.cos(tickAngle), centerY + inner * Math.sin(tickAngle));
+        ctx.lineTo(centerX + outer * Math.cos(tickAngle), centerY + outer * Math.sin(tickAngle));
+        ctx.stroke();
+
+        if (major) {
+          const labelRadius = radiusPx + 16;
+          ctx.fillText(
+            `${tickDeg}\u00B0`,
+            clamp(centerX + labelRadius * Math.cos(tickAngle), 20, width - 20),
+            clamp(centerY + labelRadius * Math.sin(tickAngle), 12, height - 12)
+          );
+        }
+      }
+
+      ctx.restore();
+    }
   }
 
   const labels = shapeLabels(shape);
@@ -508,10 +545,15 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   const frozenLayoutRef = useRef<SceneLayout | null>(null);
   const interactionRef = useRef<{ drag: DragTarget; hover: DragTarget }>({ drag: 'none', hover: 'none' });
   const onChangeRef = useRef(onChange);
+  const reducedMotionRef = useRef(false);
   const [dragTarget, setDragTarget] = useState<DragTarget>('none');
   const [hoverTarget, setHoverTarget] = useState<DragTarget>('none');
 
   const targetAngle = state.angleDegree * state.direction;
+  const radiusBefore = Math.hypot(state.point.x - state.center.a, state.point.y - state.center.b);
+  const rotatedPoint = rotatePoint(state.point, state.center, targetAngle);
+  const radiusAfter = Math.hypot(rotatedPoint.x - state.center.a, rotatedPoint.y - state.center.b);
+  const radiusDelta = trim(radiusAfter - radiusBefore, 2);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -530,6 +572,24 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
     interactionRef.current = { drag: dragTarget, hover: hoverTarget };
     dirtyRef.current = true;
   }, [dragTarget, hoverTarget]);
+
+  /* Preferensi gerak: lompat langsung ke sudut target, tanpa easing maupun pulse. */
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => {
+      reducedMotionRef.current = query.matches;
+      const config = configRef.current;
+      if (query.matches && config) {
+        animatedRef.current = config.targetAngle;
+      }
+      dirtyRef.current = true;
+    };
+
+    apply();
+    query.addEventListener('change', apply);
+
+    return () => query.removeEventListener('change', apply);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -564,20 +624,27 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       const layout = frozenLayoutRef.current ?? computeLayout(width, height, config.state);
       renderScene(ctx, width, height, config, animatedRef.current, layout, {
         interaction: interactionRef.current,
-        pulse: (performance.now() % 1200) / 1200,
+        pulse: reducedMotionRef.current ? 0 : (performance.now() % 1200) / 1200,
       });
     };
 
     const tick = () => {
       const config = configRef.current;
       if (config) {
-        const diff = config.targetAngle - animatedRef.current;
-        if (Math.abs(diff) > 0.02) {
-          animatedRef.current += diff * 0.18;
-          dirtyRef.current = true;
-        } else if (animatedRef.current !== config.targetAngle) {
-          animatedRef.current = config.targetAngle;
-          dirtyRef.current = true;
+        if (reducedMotionRef.current) {
+          if (animatedRef.current !== config.targetAngle) {
+            animatedRef.current = config.targetAngle;
+            dirtyRef.current = true;
+          }
+        } else {
+          const diff = config.targetAngle - animatedRef.current;
+          if (Math.abs(diff) > 0.02) {
+            animatedRef.current += diff * 0.18;
+            dirtyRef.current = true;
+          } else if (animatedRef.current !== config.targetAngle) {
+            animatedRef.current = config.targetAngle;
+            dirtyRef.current = true;
+          }
         }
       }
 
@@ -838,7 +905,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
           ref={canvasRef}
           className={`absolute inset-0 h-full w-full ${cursorClass}`}
           role="img"
-          aria-label="Bidang kartesius interaktif; tarik titik P atau pusat rotasi untuk memindahkannya"
+          aria-label="Bidang kartesius interaktif dengan busur derajat; tarik titik P atau pusat rotasi untuk memindahkannya"
         />
 
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
@@ -855,6 +922,18 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-[10px] font-medium text-slate-500 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
           Tarik titik P atau pusat · atur sudut lewat slider
+        </div>
+
+        <div className="pointer-events-none absolute bottom-3 right-3 hidden rounded-lg border border-slate-200/80 bg-white/90 px-2.5 py-1.5 backdrop-blur sm:block dark:border-slate-700 dark:bg-slate-900/85">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Invarian rotasi
+          </p>
+          <p className="mt-0.5 font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+            r = {formatNumber(trim(radiusBefore, 3))} \u2192 r\u2032 = {formatNumber(trim(radiusAfter, 3))}
+          </p>
+          <p className="font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            \u0394r = {formatNumber(radiusDelta)} \u00B7 jarak tetap
+          </p>
         </div>
       </div>
     </div>
