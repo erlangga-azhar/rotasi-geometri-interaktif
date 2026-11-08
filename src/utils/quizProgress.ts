@@ -104,6 +104,11 @@ export function loadQuizProgress(): QuizProgressV1 | null {
     if (answers.length !== rawAnswers.length || answers.length > questions.length) return null;
     if (typeof parsed.finished !== 'boolean') return null;
 
+    /* Jawaban harus tepat selaras dengan posisi soal dan pilihan yang tersimpan. */
+    const expectedAnswers = index + (selected !== null ? 1 : 0);
+    if (answers.length !== expectedAnswers) return null;
+    if (parsed.finished && (selected === null || index !== questions.length - 1)) return null;
+
     return { version: VERSION, questions, index, selected, answers, finished: parsed.finished };
   } catch {
     return null;
@@ -118,10 +123,3 @@ export function saveQuizProgress(progress: QuizProgressV1): void {
   }
 }
 
-export function clearQuizProgress(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* penyimpanan tidak tersedia */
-  }
-}

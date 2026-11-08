@@ -34,7 +34,10 @@ export function applyTheme(theme: ThemeMode): void {
   if (meta) meta.content = THEME_COLOR[theme];
 
   try {
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    /* Tulis hanya jika berubah: mencegah event storage balik dan write berulang. */
+    if (window.localStorage.getItem(THEME_STORAGE_KEY) !== theme) {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
   } catch {
     /* penyimpanan penuh atau diblokir browser */
   }

@@ -1,12 +1,11 @@
 import { useRef } from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
-import type { CenterPoint, RotationState, ShapeType, ThemeMode } from '../types/rotation';
+import type { CenterPoint, RotationState, ShapeType } from '../types/rotation';
 import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
 import NumberField from './NumberField';
 
 interface ControlPanelProps {
   state: RotationState;
-  theme: ThemeMode;
   onChange: (patch: Partial<RotationState>) => void;
 }
 
@@ -25,7 +24,7 @@ const SEGMENT_BASE = 'rounded-lg px-2 py-2 text-[11px] font-bold transition sm:t
 const SEGMENT_INACTIVE =
   'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200';
 
-function ControlPanel({ state, theme, onChange }: ControlPanelProps) {
+function ControlPanel({ state, onChange }: ControlPanelProps) {
   const effective = state.angleDegree * state.direction;
   const result = rotatePoint(state.point, state.center, effective);
   const isOrigin = state.center.a === 0 && state.center.b === 0;
@@ -41,10 +40,7 @@ function ControlPanel({ state, theme, onChange }: ControlPanelProps) {
   };
 
   return (
-    <div
-      data-theme={theme}
-      className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
-    >
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
       <div>
         <p className="field-label">Objek yang dirotasi</p>
         <div className="grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">

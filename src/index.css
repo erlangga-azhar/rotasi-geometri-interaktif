@@ -40,7 +40,7 @@
   }
 
   .number-input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500;
+    @apply w-full rounded-lg border border-slate-500 bg-white px-3 py-2 font-mono text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 dark:border-slate-500 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400;
   }
 
   .section-shell {
@@ -115,7 +115,7 @@ input[type='number'] {
   height: 8px;
   border-radius: 8px;
   background: #e2e8f0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #64748b;
   outline: none;
 }
 
@@ -148,7 +148,7 @@ input[type='number'] {
 /* Range slider — dark */
 .dark .range-rotasi {
   background: #020617;
-  border-color: #1e293b;
+  border-color: #64748b;
 }
 
 .dark .range-rotasi::-webkit-slider-thumb {

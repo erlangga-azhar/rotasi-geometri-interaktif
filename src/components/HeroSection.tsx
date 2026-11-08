@@ -18,12 +18,12 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
     {
       label: 'Titik awal',
       value: `(${formatNumber(state.point.x)}, ${formatNumber(state.point.y)})`,
-      tone: 'text-sky-600 dark:text-sky-400',
+      tone: 'text-sky-700 dark:text-sky-400',
     },
     {
       label: 'Pusat',
       value: `(${formatNumber(state.center.a)}, ${formatNumber(state.center.b)})`,
-      tone: 'text-amber-600 dark:text-amber-400',
+      tone: 'text-amber-700 dark:text-amber-400',
     },
     {
       label: 'Sudut efektif',
@@ -80,7 +80,7 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
             </div>
           </div>
 
-          <ControlPanel state={state} theme={theme} onChange={onChange} />
+          <ControlPanel state={state} onChange={onChange} />
         </div>
       </div>
     </section>

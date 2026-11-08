@@ -153,7 +153,6 @@ function Header({ theme, onToggleTheme }: HeaderProps) {
           onClick={onToggleTheme}
           aria-label={isDark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
           title={isDark ? 'Mode terang' : 'Mode gelap'}
-          aria-pressed={isDark}
           className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
         >
           {isDark ? <Sun size={15} /> : <Moon size={15} />}

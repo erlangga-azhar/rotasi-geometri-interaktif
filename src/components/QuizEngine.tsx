@@ -95,7 +95,7 @@ function QuizEngine({ onVisualize }: QuizEngineProps) {
             <button
               type="button"
               onClick={restart}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-500 dark:shadow-indigo-950/50"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 dark:shadow-indigo-950/50"
             >
               <RefreshCw size={16} /> Ulangi dengan soal baru
             </button>
@@ -178,6 +178,9 @@ function QuizEngine({ onVisualize }: QuizEngineProps) {
 
               {answered && (
                 <div
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
                   className={
                     'mt-5 animate-pop rounded-xl border p-4 ' +
                     (isCorrect
@@ -220,7 +223,7 @@ function QuizEngine({ onVisualize }: QuizEngineProps) {
                       <button
                         type="button"
                         onClick={() => onVisualize(question.params, index)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-500 dark:shadow-indigo-950/50"
+                        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 dark:shadow-indigo-950/50"
                       >
                         <Eye size={15} /> Lihat Visualisasi
                       </button>

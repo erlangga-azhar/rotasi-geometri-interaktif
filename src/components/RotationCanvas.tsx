@@ -347,12 +347,12 @@ function renderScene(
   ctx.save();
   ctx.setLineDash([6, 6]);
   ctx.lineWidth = 1.3;
-  ctx.strokeStyle = 'rgba(59,130,246,0.5)';
+  ctx.strokeStyle = dark ? 'rgba(59,130,246,0.8)' : 'rgba(29,78,216,0.65)';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(anchorX, anchorY);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+  ctx.strokeStyle = dark ? 'rgba(239,68,68,0.8)' : 'rgba(185,28,28,0.6)';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(toX(rotatedAnchor.x), toY(rotatedAnchor.y));
@@ -367,7 +367,7 @@ function renderScene(
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, radiusPx, startCanvas, endCanvas, animatedAngle > 0);
-    ctx.strokeStyle = 'rgba(99,102,241,0.65)';
+    ctx.strokeStyle = dark ? 'rgba(99,102,241,0.85)' : 'rgba(79,70,229,0.85)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -383,7 +383,7 @@ function renderScene(
       endY,
       Math.atan2(endY - previousY, endX - previousX),
       8,
-      'rgba(99,102,241,0.95)'
+      dark ? 'rgba(99,102,241,0.95)' : 'rgba(67,56,202,0.95)'
     );
 
     const wedgeRadius = clamp(radiusPx * 0.32, 22, 46);
@@ -411,7 +411,7 @@ function renderScene(
       const directionSign = animatedAngle >= 0 ? 1 : -1;
 
       ctx.save();
-      ctx.strokeStyle = dark ? 'rgba(165,180,252,0.8)' : 'rgba(79,70,229,0.6)';
+      ctx.strokeStyle = dark ? 'rgba(165,180,252,0.8)' : 'rgba(79,70,229,0.85)';
       ctx.fillStyle = dark ? '#c7d2fe' : '#4338ca';
       ctx.font = '600 9px ui-monospace, SFMono-Regular, Consolas, monospace';
       ctx.textAlign = 'center';
@@ -476,7 +476,13 @@ function renderScene(
 
       const label = prime ? `${labels[index]}′` : labels[index];
       const text = shape === 'point' ? `${label}(${formatNumber(p.x)}, ${formatNumber(p.y)})` : label;
-      const tagColor = dark ? stroke : stroke === BLUE ? '#1d4ed8' : '#b91c1c';
+      const tagColor = dark
+        ? stroke === BLUE
+          ? '#93c5fd'
+          : stroke
+        : stroke === BLUE
+          ? '#1d4ed8'
+          : '#b91c1c';
       drawTag(ctx, text, x, y, tagColor, dark, width, height);
     });
   };
@@ -484,12 +490,14 @@ function renderScene(
   drawShape(vertices, BLUE, 'rgba(59,130,246,0.13)', false);
   drawShape(rotatedVertices, RED, 'rgba(239,68,68,0.13)', true);
 
+  const centerColor = dark ? AMBER : '#b45309';
+
   /* Penanda pusat */
   ctx.beginPath();
   ctx.arc(centerX, centerY, 7, 0, Math.PI * 2);
   ctx.fillStyle = dark ? 'rgba(245,158,11,0.22)' : 'rgba(245,158,11,0.18)';
   ctx.fill();
-  ctx.strokeStyle = AMBER;
+  ctx.strokeStyle = centerColor;
   ctx.lineWidth = 2;
   ctx.stroke();
 
@@ -498,7 +506,7 @@ function renderScene(
   ctx.lineTo(centerX + 11, centerY);
   ctx.moveTo(centerX, centerY - 11);
   ctx.lineTo(centerX, centerY + 11);
-  ctx.strokeStyle = AMBER;
+  ctx.strokeStyle = centerColor;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
@@ -514,7 +522,7 @@ function renderScene(
       `Pusat (${formatNumber(center.a)}, ${formatNumber(center.b)})`,
       centerX,
       centerY,
-      dark ? AMBER : '#b45309',
+      centerColor,
       dark,
       width,
       height
@@ -538,7 +546,7 @@ function renderScene(
 
   if (options.watermark) {
     ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = dark ? 'rgba(148,163,184,0.8)' : 'rgba(100,116,139,0.72)';
+    ctx.fillStyle = dark ? 'rgba(148,163,184,0.85)' : 'rgba(71,85,105,0.92)';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     ctx.fillText('RotasiLab · Transformasi Geometri', width - 10, height - 8);
@@ -547,7 +555,8 @@ function renderScene(
 
 function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const sizeRef = useRef({ width: 0, height: 0 });
+  const exportingRef = useRef(false);
   const configRef = useRef<SceneConfig | null>(null);
   const animatedRef = useRef<number>(state.angleDegree * state.direction);
   const dirtyRef = useRef(true);
@@ -565,6 +574,30 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   const rotatedPoint = rotatePoint(state.point, state.center, targetAngle);
   const radiusAfter = Math.hypot(rotatedPoint.x - state.center.a, rotatedPoint.y - state.center.b);
   const radiusDelta = trim(radiusAfter - radiusBefore, 2);
+
+  const [announcement, setAnnouncement] = useState('');
+
+  /* Pengumuman koordinat di-debounce agar drag tidak membanjiri screen reader. */
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAnnouncement(
+        `Titik P (${formatNumber(state.point.x)}, ${formatNumber(state.point.y)}). ` +
+          `Pusat (${formatNumber(state.center.a)}, ${formatNumber(state.center.b)}). ` +
+          `Sudut ${angleLabel(targetAngle)}. ` +
+          `Bayangan P′ (${formatNumber(rotatedPoint.x)}, ${formatNumber(rotatedPoint.y)}).`
+      );
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    state.point.x,
+    state.point.y,
+    state.center.a,
+    state.center.b,
+    targetAngle,
+    rotatedPoint.x,
+    rotatedPoint.y,
+  ]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -604,30 +637,37 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return undefined;
+    if (!canvas) return undefined;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return undefined;
 
+    /* Ukuran CSS di-cache: loop rAF tidak lagi memicu layout read setiap frame. */
+    const initial = canvas.getBoundingClientRect();
+    sizeRef.current = { width: initial.width, height: initial.height };
+
     let frame = 0;
     let lastWidth = 0;
     let lastHeight = 0;
+    let lastDpr = 0;
 
     const draw = () => {
       const config = configRef.current;
       if (!config) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const width = Math.max(220, rect.width);
-      const height = Math.max(220, rect.height);
+      const { width: measuredWidth, height: measuredHeight } = sizeRef.current;
+      if (measuredWidth < 1 || measuredHeight < 1) return;
+
+      const width = Math.max(220, measuredWidth);
+      const height = Math.max(220, measuredHeight);
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-      if (lastWidth !== width || lastHeight !== height) {
+      if (lastWidth !== width || lastHeight !== height || lastDpr !== dpr) {
         canvas.width = Math.round(width * dpr);
         canvas.height = Math.round(height * dpr);
         lastWidth = width;
         lastHeight = height;
+        lastDpr = dpr;
       }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -671,10 +711,13 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
 
     frame = requestAnimationFrame(tick);
 
-    const observer = new ResizeObserver(() => {
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      sizeRef.current = { width: entry.contentRect.width, height: entry.contentRect.height };
       dirtyRef.current = true;
     });
-    observer.observe(container);
+    observer.observe(canvas);
 
     return () => {
       cancelAnimationFrame(frame);
@@ -830,12 +873,13 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   const handleDownload = () => {
     const canvas = canvasRef.current;
     const config = configRef.current;
-    if (!canvas || !config) return;
+    if (!canvas || !config || exportingRef.current) return;
 
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(320, Math.round(rect.width));
     const height = Math.max(240, Math.round(rect.height));
-    const exportScale = 2;
+    /* Batasi sisi panjang 2400 px agar ponsel tidak kehabisan memori saat ekspor. */
+    const exportScale = Math.min(2, 2400 / Math.max(width, height));
 
     const offscreen = document.createElement('canvas');
     offscreen.width = Math.round(width * exportScale);
@@ -862,14 +906,26 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       ','
     );
 
+    exportingRef.current = true;
+
     try {
-      const link = document.createElement('a');
-      link.href = offscreen.toDataURL('image/png');
-      link.download = `rotasi-geometri-${suffix}${printWhite ? '-putih' : ''}.png`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      offscreen.toBlob((blob) => {
+        exportingRef.current = false;
+        if (!blob) return;
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `rotasi-geometri-${suffix}${printWhite ? '-putih' : ''}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        /* Lepaskan blob setelah unduhan mulai agar memori tidak tertahan. */
+        window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }, 'image/png');
     } catch {
+      exportingRef.current = false;
       /* kanvas tidak dapat diekspor di lingkungan ini */
     }
   };
@@ -879,6 +935,9 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/50 transition-colors sm:p-4 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
         <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-200">
           <span className="grid h-7 w-7 place-items-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400">
@@ -930,14 +989,12 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
         </div>
       </div>
 
-      <div
-        ref={containerRef}
-        className="relative h-[330px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner transition-colors sm:h-[420px] lg:h-[470px] dark:border-slate-800/80 dark:bg-slate-950"
-      >
+      <div className="relative h-[330px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner transition-colors sm:h-[420px] lg:h-[470px] dark:border-slate-800/80 dark:bg-slate-950">
         <canvas
           ref={canvasRef}
           className={`absolute inset-0 h-full w-full ${cursorClass}`}
           role="img"
+          aria-describedby="canvas-hint"
           aria-label="Bidang kartesius interaktif dengan busur derajat; tarik titik P atau pusat rotasi untuk memindahkannya"
         />
 
@@ -953,7 +1010,10 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
           </span>
         </div>
 
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400 dark:shadow-none">
+        <div
+          id="canvas-hint"
+          className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400 dark:shadow-none"
+        >
           Tarik titik P atau pusat · atur sudut lewat slider
         </div>
 

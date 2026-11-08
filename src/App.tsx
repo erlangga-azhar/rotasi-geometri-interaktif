@@ -9,7 +9,7 @@ import QuizEngine from './components/QuizEngine';
 import Footer from './components/Footer';
 import type { RotationState, ThemeMode } from './types/rotation';
 import { DEFAULT_STATE } from './utils/math';
-import { applyTheme, getInitialTheme } from './utils/theme';
+import { THEME_STORAGE_KEY, applyTheme, getInitialTheme } from './utils/theme';
 
 function scrollToSection(id: string) {
   const behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -26,6 +26,19 @@ function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  /* Sinkronisasi lintas-tab: tab lain yang mengubah tema langsung diikuti. */
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== THEME_STORAGE_KEY) return;
+      if (event.newValue === 'light' || event.newValue === 'dark') {
+        setTheme((previous) => (previous === event.newValue ? previous : (event.newValue as ThemeMode)));
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme((previous) => (previous === 'dark' ? 'light' : 'dark'));
@@ -63,7 +76,7 @@ function App() {
         <button
           type="button"
           onClick={backToQuiz}
-          className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-600/90 px-5 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition hover:bg-indigo-500"
+          className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-600/90 px-5 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition hover:bg-indigo-700"
         >
           <ArrowLeft size={15} /> Kembali ke soal {quizReturn.index + 1}
         </button>
