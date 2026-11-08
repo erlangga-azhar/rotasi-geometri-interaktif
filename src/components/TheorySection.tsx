@@ -43,7 +43,7 @@ function TheorySection({ state }: TheorySectionProps) {
   const numericCenter = String.raw`\begin{pmatrix} x' \\ y' \end{pmatrix} = \begin{pmatrix} ${cos} & ${trim(-sin)} \\ ${sin} & ${cos} \end{pmatrix} \begin{pmatrix} ${texNumber(innerX)} \\ ${texNumber(innerY)} \end{pmatrix} + \begin{pmatrix} ${texNumber(state.center.a)} \\ ${texNumber(state.center.b)} \end{pmatrix} = \begin{pmatrix} ${texNumber(result.x)} \\ ${texNumber(result.y)} \end{pmatrix}`;
 
   return (
-    <section id="teori" className="scroll-mt-28 border-t border-slate-200/70 py-16 dark:border-slate-800/80">
+    <section id="teori" className="scroll-mt-28 border-t border-slate-200 py-16 dark:border-slate-800/80">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           icon={BookOpen}
@@ -55,22 +55,22 @@ function TheorySection({ state }: TheorySectionProps) {
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="card p-5 sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Pusat di O(0, 0)</h3>
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Pusat di O(0, 0)</h3>
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
                 Kasus dasar
               </span>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">
-              <Tex tex={GENERIC_ORIGIN} block className="text-slate-800 dark:text-slate-100" />
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-950">
+              <Tex tex={GENERIC_ORIGIN} block className="text-slate-900 dark:text-slate-100" />
             </div>
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Substitusi θ = {angleLabel(effective)} dan P({formatNumber(state.point.x)},{' '}
               {formatNumber(state.point.y)})
             </p>
-            <div className="mt-2 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-3 py-3 dark:border-indigo-500/20 dark:bg-indigo-500/5">
-              <Tex tex={numericOrigin} block className="text-indigo-900 dark:text-indigo-100" />
+            <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 dark:border-indigo-500/30 dark:bg-indigo-950/30">
+              <Tex tex={numericOrigin} block className="text-indigo-700 dark:text-indigo-200" />
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
               Nilai cos θ = <span className="font-mono font-semibold">{cos}</span> dan sin θ ={' '}
               <span className="font-mono font-semibold">{sin}</span>. Karena itu matriksnya menjadi bilangan bulat
               untuk sudut kelipatan 90°.
@@ -79,23 +79,23 @@ function TheorySection({ state }: TheorySectionProps) {
 
           <div className="card p-5 sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Pusat di (a, b) = ({formatNumber(state.center.a)}, {formatNumber(state.center.b)})
               </h3>
-              <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300">
                 Umum
               </span>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">
-              <Tex tex={GENERIC_CENTER} block className="text-slate-800 dark:text-slate-100" />
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-950">
+              <Tex tex={GENERIC_CENTER} block className="text-slate-900 dark:text-slate-100" />
             </div>
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Substitusi nilai saat ini
             </p>
-            <div className="mt-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-500/20 dark:bg-violet-500/5">
-              <Tex tex={numericCenter} block className="text-violet-900 dark:text-violet-100" />
+            <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 dark:border-violet-500/30 dark:bg-violet-950/30">
+              <Tex tex={numericCenter} block className="text-violet-700 dark:text-violet-200" />
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
               {state.center.a === 0 && state.center.b === 0
                 ? 'Pusat saat ini (0, 0), sehingga rumus umum ini tepat sama dengan kasus pertama.'
                 : 'Geser titik pusat untuk melihat bahwa bentuk matriksnya tetap, hanya offset (a, b) yang berubah.'}
@@ -104,14 +104,14 @@ function TheorySection({ state }: TheorySectionProps) {
         </div>
 
         <div className="card mt-8 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
+              <span className="grid h-7 w-7 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
                 <Lightbulb size={15} />
               </span>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Cheat Sheet Sudut Istimewa</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Cheat Sheet Sudut Istimewa</h3>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
               Sudut positif = berlawanan arah jarum jam
             </p>
           </div>
@@ -119,7 +119,7 @@ function TheorySection({ state }: TheorySectionProps) {
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
                   <th className="px-5 py-3 font-bold">Sudut θ</th>
                   <th className="px-5 py-3 font-bold">cos θ</th>
                   <th className="px-5 py-3 font-bold">sin θ</th>
@@ -128,30 +128,38 @@ function TheorySection({ state }: TheorySectionProps) {
                 </tr>
               </thead>
               <tbody>
-                {CHEATS.map((row) => (
-                  <tr
-                    key={row.deg}
-                    className={
-                      'border-b border-slate-100 transition last:border-0 dark:border-slate-800/70 ' +
-                      (row.deg === effective
-                        ? 'bg-indigo-50/70 dark:bg-indigo-500/10'
-                        : 'hover:bg-slate-50/70 dark:hover:bg-slate-950/30')
-                    }
-                  >
-                    <td className="px-5 py-3 font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">
-                      {row.deg > 0 ? '+' : ''}
-                      {row.deg}°
-                    </td>
-                    <td className="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{row.cos}</td>
-                    <td className="px-5 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{row.sin}</td>
-                    <td className="px-5 py-3">
-                      <Tex tex={row.matrix} />
-                    </td>
-                    <td className="px-5 py-3">
-                      <Tex tex={row.map} />
-                    </td>
-                  </tr>
-                ))}
+                {CHEATS.map((row) => {
+                  const active = row.deg === effective;
+                  return (
+                    <tr
+                      key={row.deg}
+                      className={
+                        'border-b border-slate-200/70 transition last:border-0 dark:border-slate-800/70 ' +
+                        (active ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-950/60')
+                      }
+                    >
+                      <td
+                        className={
+                          'border-l-2 px-5 py-3 font-mono text-xs font-semibold ' +
+                          (active
+                            ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300'
+                            : 'border-transparent text-slate-700 dark:text-slate-200')
+                        }
+                      >
+                        {row.deg > 0 ? '+' : ''}
+                        {row.deg}°
+                      </td>
+                      <td className="px-5 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{row.cos}</td>
+                      <td className="px-5 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{row.sin}</td>
+                      <td className="px-5 py-3">
+                        <Tex tex={row.matrix} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <Tex tex={row.map} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

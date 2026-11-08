@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
-import type { CenterPoint, RotationState, ShapeType } from '../types/rotation';
+import type { CenterPoint, RotationState, ShapeType, ThemeMode } from '../types/rotation';
 import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
 import NumberField from './NumberField';
 
 interface ControlPanelProps {
   state: RotationState;
+  theme: ThemeMode;
   onChange: (patch: Partial<RotationState>) => void;
 }
 
@@ -20,7 +21,11 @@ const SHAPE_OPTIONS: ShapeOption[] = [
   { id: 'square', label: 'Persegi ABCD' },
 ];
 
-function ControlPanel({ state, onChange }: ControlPanelProps) {
+const SEGMENT_BASE = 'rounded-lg px-2 py-2 text-[11px] font-bold transition sm:text-xs';
+const SEGMENT_INACTIVE =
+  'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200';
+
+function ControlPanel({ state, theme, onChange }: ControlPanelProps) {
   const effective = state.angleDegree * state.direction;
   const result = rotatePoint(state.point, state.center, effective);
   const isOrigin = state.center.a === 0 && state.center.b === 0;
@@ -36,20 +41,24 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
   };
 
   return (
-    <div className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
+    <div
+      data-theme={theme}
+      className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
+    >
       <div>
         <p className="field-label">Objek yang dirotasi</p>
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
           {SHAPE_OPTIONS.map((option) => (
             <button
               key={option.id}
               type="button"
               onClick={() => onChange({ shape: option.id })}
               className={
-                'rounded-lg px-2 py-2 text-[11px] font-bold transition sm:text-xs ' +
+                SEGMENT_BASE +
+                ' ' +
                 (state.shape === option.id
-                  ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                  ? 'border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-500/30 dark:bg-slate-800 dark:text-indigo-300'
+                  : SEGMENT_INACTIVE)
               }
             >
               {option.label}
@@ -58,7 +67,7 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
         </div>
       </div>
 
-      <div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800/60 dark:bg-slate-950/60">
         <p className="field-label">Titik awal P(x, y)</p>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
@@ -74,12 +83,12 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
         </div>
       </div>
 
-      <div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800/60 dark:bg-slate-950/60">
         <p className="field-label">Pusat rotasi</p>
         <div
           role="group"
           aria-label="Jenis pusat rotasi"
-          className="mb-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
+          className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-950"
         >
           <button
             type="button"
@@ -88,8 +97,8 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
             className={
               'rounded-lg px-2 py-1.5 font-mono text-[11px] font-bold transition ' +
               (isOrigin
-                ? 'bg-white text-amber-600 shadow-sm dark:bg-slate-950 dark:text-amber-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                ? 'border border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300'
+                : SEGMENT_INACTIVE)
             }
           >
             O(0, 0)
@@ -101,8 +110,8 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
             className={
               'rounded-lg px-2 py-1.5 font-mono text-[11px] font-bold transition ' +
               (!isOrigin
-                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 dark:shadow-indigo-950/50'
+                : SEGMENT_INACTIVE)
             }
           >
             P(a, b)
@@ -120,7 +129,7 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
             onChange={(value) => onChange({ center: { ...state.center, b: value } })}
           />
         </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-[10px] leading-relaxed text-slate-600 dark:text-slate-400">
           {isOrigin
             ? 'Pusat di titik asal: 90° memetakan (x, y) → (−y, x).'
             : 'Pusat kustom: geser ke (x − a, y − b), putar, lalu geser balik.'}
@@ -129,10 +138,10 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
 
       <div>
         <div className="mb-1 flex items-end justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Sudut rotasi θ
           </p>
-          <span className="font-mono text-lg font-bold text-indigo-600 dark:text-indigo-300">
+          <span className="font-mono text-lg font-bold text-indigo-600 dark:text-indigo-400">
             {angleLabel(state.angleDegree)}
           </span>
         </div>
@@ -146,24 +155,38 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
           className="range-rotasi mt-2"
           aria-label="Sudut rotasi dalam derajat"
         />
-        <div className="mt-1 flex justify-between font-mono text-[10px] text-slate-400 dark:text-slate-500">
+        <div className="mt-1 flex justify-between font-mono text-[10px] text-slate-600 dark:text-slate-400">
           <span>-360°</span>
           <span>0°</span>
           <span>+360°</span>
+        </div>
+
+        <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-500/30 dark:bg-indigo-950/30">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+              θ efektif
+            </p>
+            <p className="font-mono text-xs font-bold text-indigo-700 dark:text-indigo-300">
+              {angleLabel(effective)}
+            </p>
+          </div>
+          <p className="mt-1 font-mono text-[10px] text-indigo-700 dark:text-indigo-300">
+            {angleLabel(state.angleDegree)} × {state.direction === 1 ? '+1 (berlawanan)' : '−1 (searah)'}
+          </p>
         </div>
       </div>
 
       <div>
         <p className="field-label">Arah perputaran</p>
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
           <button
             type="button"
             onClick={() => onChange({ direction: 1 })}
             className={
               'flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition ' +
               (state.direction === 1
-                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-950 dark:text-indigo-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 dark:shadow-indigo-950/50'
+                : SEGMENT_INACTIVE)
             }
           >
             <RotateCcw size={13} /> Berlawanan (+θ)
@@ -174,8 +197,8 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
             className={
               'flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition ' +
               (state.direction === -1
-                ? 'bg-white text-rose-600 shadow-sm dark:bg-slate-950 dark:text-rose-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                ? 'border border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300'
+                : SEGMENT_INACTIVE)
             }
           >
             <RotateCw size={13} /> Searah (−θ)
@@ -194,8 +217,8 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
               className={
                 'rounded-lg border px-1 py-2 font-mono text-xs font-bold transition ' +
                 (state.angleDegree === deg && state.direction === 1
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
-                  : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-500/50')
+                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200')
               }
             >
               {deg > 0 ? '+' : ''}
@@ -205,15 +228,15 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-3.5 dark:border-indigo-500/20 dark:from-indigo-500/10 dark:to-violet-500/10">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-300">
+      <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-white via-indigo-50 to-white p-3.5 dark:border-indigo-500/30 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
           Hasil bayangan
         </p>
-        <p className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <p className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
           P({formatNumber(state.point.x)}, {formatNumber(state.point.y)}) → P′({formatNumber(result.x)},{' '}
           {formatNumber(result.y)})
         </p>
-        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
           Rotasi {angleLabel(Math.abs(effective))} {effective >= 0 ? 'berlawanan' : 'searah'} jarum jam terhadap (
           {formatNumber(state.center.a)}, {formatNumber(state.center.b)})
         </p>

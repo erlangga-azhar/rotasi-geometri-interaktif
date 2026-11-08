@@ -18,40 +18,40 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
     {
       label: 'Titik awal',
       value: `(${formatNumber(state.point.x)}, ${formatNumber(state.point.y)})`,
-      tone: 'text-blue-600 dark:text-blue-300',
+      tone: 'text-sky-600 dark:text-sky-400',
     },
     {
       label: 'Pusat',
       value: `(${formatNumber(state.center.a)}, ${formatNumber(state.center.b)})`,
-      tone: 'text-amber-600 dark:text-amber-300',
+      tone: 'text-amber-600 dark:text-amber-400',
     },
     {
       label: 'Sudut efektif',
       value: angleLabel(effective),
-      tone: 'text-indigo-600 dark:text-indigo-300',
+      tone: 'text-indigo-600 dark:text-indigo-400',
     },
     {
       label: 'Bayangan',
       value: `(${formatNumber(result.x)}, ${formatNumber(result.y)})`,
-      tone: 'text-rose-600 dark:text-rose-300',
+      tone: 'text-rose-600 dark:text-rose-400',
     },
   ];
 
   return (
     <section id="visualizer" className="relative scroll-mt-24 overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_75%)]" />
-      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-300/25 blur-3xl dark:bg-indigo-600/15" />
-      <div className="pointer-events-none absolute -right-20 top-32 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl dark:bg-violet-600/15" />
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-40 [mask-image:radial-gradient(ellipse_at_top,black,transparent_75%)]" />
+      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-600/15" />
+      <div className="pointer-events-none absolute -right-20 top-32 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl dark:bg-violet-600/15" />
 
       <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 sm:pt-14 lg:px-8">
         <div className="mx-auto mb-8 max-w-3xl text-center">
           <span className="chip">
-            <Sparkles size={13} className="text-indigo-500" />
+            <Sparkles size={13} className="text-indigo-600 dark:text-indigo-400" />
             Matematika SMA/SMK · Transformasi Geometri
           </span>
           <h1 className="mt-4 text-3xl font-extrabold leading-[1.15] tracking-tight text-slate-900 sm:text-4xl lg:text-5xl dark:text-white">
             Rotasi jadi{' '}
-            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-indigo-400 dark:via-violet-400 dark:to-fuchsia-400">
               terlihat nyata
             </span>
           </h1>
@@ -69,9 +69,9 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
               {stats.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     {item.label}
                   </p>
                   <p className={`mt-0.5 font-mono text-sm font-bold ${item.tone}`}>{item.value}</p>
@@ -80,7 +80,7 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
             </div>
           </div>
 
-          <ControlPanel state={state} onChange={onChange} />
+          <ControlPanel state={state} theme={theme} onChange={onChange} />
         </div>
       </div>
     </section>

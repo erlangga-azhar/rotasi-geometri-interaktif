@@ -7,20 +7,29 @@
       name="description"
       content="RotasiLab — aplikasi edukasi interaktif rotasi (perputaran) pada transformasi geometri untuk SMA/SMK. Visualizer Kartesius, matriks dinamis, kalkulator step-by-step, dan kuis. Dapat digunakan offline."
     />
-    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f8fafc" id="theme-color" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>RotasiLab — Rotasi (Perputaran) Transformasi Geometri</title>
     <script>
+      /* Terapkan tema sebelum paint agar tidak ada kilatan latar yang salah. */
       (function () {
         try {
-          var saved = localStorage.getItem('rotasi-theme');
-          if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-          }
-        } catch (e) {
-          /* preferensi tema tidak tersedia */
+          var stored = localStorage.getItem('rotasi-theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          document.documentElement.classList.toggle('dark', theme === 'dark');
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          var meta = document.getElementById('theme-color');
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#020617' : '#f8fafc');
+        } catch (error) {
+          document.documentElement.classList.add('dark');
         }
       })();
     </script>
@@ -28,9 +37,21 @@
   <body>
     <div id="root"></div>
     <noscript>
-      <div style="padding: 24px; font-family: system-ui">
-        Aplikasi ini membutuhkan JavaScript. Silakan aktifkan JavaScript pada browser Anda.
-      </div>
+      <style>
+        .noscript {
+          padding: 24px;
+          font-family: system-ui, sans-serif;
+          background: #f8fafc;
+          color: #0f172a;
+        }
+        @media (prefers-color-scheme: dark) {
+          .noscript {
+            background: #020617;
+            color: #f1f5f9;
+          }
+        }
+      </style>
+      <div class="noscript">Aplikasi ini membutuhkan JavaScript. Silakan aktifkan JavaScript pada browser Anda.</div>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

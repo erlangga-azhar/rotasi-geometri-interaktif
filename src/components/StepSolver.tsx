@@ -24,15 +24,15 @@ function StepCard({ step, title, description, children }: StepCardProps) {
   return (
     <div className="card p-5">
       <div className="mb-3 flex items-start gap-3">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white shadow-md shadow-indigo-600/30">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white shadow-lg shadow-indigo-950/50">
           {step}
         </span>
         <div>
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h3>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{description}</p>
         </div>
       </div>
-      <div className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/60">{children}</div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-950">{children}</div>
     </div>
   );
 }
@@ -125,7 +125,7 @@ function StepSolver() {
   return (
     <section
       id="kalkulator"
-      className="scroll-mt-28 border-t border-slate-200/70 bg-white/60 py-16 dark:border-slate-800/80 dark:bg-slate-900/20"
+      className="scroll-mt-28 border-t border-slate-200 py-16 dark:border-slate-800/80"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
@@ -138,7 +138,7 @@ function StepSolver() {
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
               >
                 {copyStatus === 'copied' ? <Check size={13} /> : <Copy size={13} />}
                 Salin Langkah
@@ -148,8 +148,8 @@ function StepSolver() {
                 aria-live="polite"
                 className={
                   copyStatus === 'copied'
-                    ? 'rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                    : 'rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+                    ? 'rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    : 'rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'
                 }
               >
                 {copyStatus === 'copied' ? 'Tersalin!' : copyStatus === 'error' ? 'Gagal menyalin' : ''}
@@ -161,10 +161,10 @@ function StepSolver() {
         <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
           <div className="card h-fit p-5 lg:sticky lg:top-24">
             <div className="mb-4 flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <span className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
                 <Calculator size={15} />
               </span>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Data Soal</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Data Soal</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -191,8 +191,8 @@ function StepSolver() {
                     className={
                       'rounded-md border px-1 py-1.5 font-mono text-[11px] font-semibold transition ' +
                       (angle === deg
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
-                        : 'border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400')
+                        ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/60 dark:bg-indigo-500/15 dark:text-indigo-300'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200')
                     }
                   >
                     {deg > 0 ? '+' : ''}
@@ -202,27 +202,29 @@ function StepSolver() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 p-3 dark:bg-slate-950/60">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Variabel terhitung
               </p>
-              <p className="mt-1.5 font-mono text-xs text-slate-600 dark:text-slate-300">
+              <p className="mt-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
                 (x − a, y − b) = ({formatNumber(dx)}, {formatNumber(dy)})
               </p>
-              <p className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-300">
+              <p className="mt-1 font-mono text-xs text-slate-700 dark:text-slate-300">
                 cos θ = {cos}, sin θ = {sin}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 p-5 text-white shadow-lg shadow-indigo-600/25">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-100">Hasil akhir</p>
+            <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-white via-indigo-50 to-white p-5 shadow-xl shadow-slate-200/50 dark:border-indigo-500/30 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 dark:shadow-black/20">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                Hasil akhir
+              </p>
               <div className="mt-1 flex flex-wrap items-baseline gap-2">
                 <span className="font-mono text-3xl font-bold">
                   P′({formatNumber(finalX)}, {formatNumber(finalY)})
                 </span>
-                <span className="text-sm text-indigo-100">
+                <span className="text-sm text-indigo-700 dark:text-indigo-300">
                   dari P({formatNumber(x)}, {formatNumber(y)}) diputar {angleLabel(angle)} terhadap (
                   {formatNumber(a)}, {formatNumber(b)})
                 </span>
@@ -251,7 +253,7 @@ function StepSolver() {
               description="Kalikan baris matriks dengan kolom vektor, kemudian tambahkan kembali offset pusat (a, b)."
             >
               <Tex tex={step3} block />
-              <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 sm:grid-cols-2 dark:border-slate-800 dark:text-slate-300">
+              <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-700 sm:grid-cols-2 dark:border-slate-800 dark:text-slate-300">
                 <p className="font-mono">
                   x′ = {cos}·({formatNumber(dx)}) + ({trim(-sin)})·({formatNumber(dy)}) + {formatNumber(a)} ={' '}
                   {formatNumber(finalX)}
@@ -269,8 +271,8 @@ function StepSolver() {
               description="Rotasi tidak mengubah jarak titik terhadap pusat rotasi — inilah bukti hasilnya konsisten."
             >
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <Tex tex={step4} block className="text-indigo-700 dark:text-indigo-200" />
-                <div className="text-xs text-slate-500 dark:text-slate-400">
+                <Tex tex={step4} block className="text-indigo-700 dark:text-indigo-300" />
+                <div className="text-xs text-slate-600 dark:text-slate-400">
                   <p>
                     Jarak P ke pusat = <span className="font-mono font-semibold">{radiusBefore}</span>
                   </p>

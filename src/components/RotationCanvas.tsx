@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
-import type { Point2D, RotationState } from '../types/rotation';
+import type { Point2D, RotationState, ThemeMode } from '../types/rotation';
 import {
   DEG,
   angleLabel,
@@ -23,7 +23,7 @@ type DragTarget = 'none' | 'point' | 'center';
 
 interface RotationCanvasProps {
   state: RotationState;
-  theme: 'light' | 'dark';
+  theme: ThemeMode;
   onChange: (patch: Partial<RotationState>) => void;
 }
 
@@ -113,7 +113,7 @@ function drawTag(
   if (top + boxHeight > height - 6) top = height - boxHeight - 6;
 
   traceRoundRect(ctx, left, top, boxWidth, boxHeight, 7);
-  ctx.fillStyle = dark ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.94)';
+  ctx.fillStyle = dark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.97)';
   ctx.fill();
   ctx.strokeStyle = `${color}55`;
   ctx.lineWidth = 1;
@@ -241,7 +241,7 @@ function renderScene(
   const { point, center, shape } = state;
   const palette = dark
     ? { grid: 'rgba(148,163,184,0.13)', axis: '#64748b', tick: '#94a3b8', axisLabel: '#94a3b8' }
-    : { grid: 'rgba(100,116,139,0.14)', axis: '#94a3b8', tick: '#94a3b8', axisLabel: '#64748b' };
+    : { grid: 'rgba(100,116,139,0.18)', axis: '#64748b', tick: '#475569', axisLabel: '#475569' };
 
   ctx.clearRect(0, 0, width, height);
   if (options.background) {
@@ -476,7 +476,8 @@ function renderScene(
 
       const label = prime ? `${labels[index]}′` : labels[index];
       const text = shape === 'point' ? `${label}(${formatNumber(p.x)}, ${formatNumber(p.y)})` : label;
-      drawTag(ctx, text, x, y, stroke, dark, width, height);
+      const tagColor = dark ? stroke : stroke === BLUE ? '#1d4ed8' : '#b91c1c';
+      drawTag(ctx, text, x, y, tagColor, dark, width, height);
     });
   };
 
@@ -508,7 +509,16 @@ function renderScene(
     ctx.textBaseline = 'top';
     ctx.fillText('O(0, 0)', clamp(centerX + 12, 4, width - 60), clamp(centerY + 10, 4, height - 16));
   } else {
-    drawTag(ctx, `Pusat (${formatNumber(center.a)}, ${formatNumber(center.b)})`, centerX, centerY, AMBER, dark, width, height);
+    drawTag(
+      ctx,
+      `Pusat (${formatNumber(center.a)}, ${formatNumber(center.b)})`,
+      centerX,
+      centerY,
+      dark ? AMBER : '#b45309',
+      dark,
+      width,
+      height
+    );
   }
 
   /* Halo interaksi tarik */
@@ -548,6 +558,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   const reducedMotionRef = useRef(false);
   const [dragTarget, setDragTarget] = useState<DragTarget>('none');
   const [hoverTarget, setHoverTarget] = useState<DragTarget>('none');
+  const [printWhite, setPrintWhite] = useState(false);
 
   const targetAngle = state.angleDegree * state.direction;
   const radiusBefore = Math.hypot(state.point.x - state.center.a, state.point.y - state.center.b);
@@ -833,11 +844,18 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
     const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
+    const exportDark = theme === 'dark' && !printWhite;
+
     ctx.scale(exportScale, exportScale);
-    renderScene(ctx, width, height, config, config.targetAngle, computeLayout(width, height, config.state), {
-      background: config.dark ? '#0f172a' : '#ffffff',
-      watermark: true,
-    });
+    renderScene(
+      ctx,
+      width,
+      height,
+      { ...config, dark: exportDark },
+      config.targetAngle,
+      computeLayout(width, height, config.state),
+      { background: exportDark ? '#020617' : '#ffffff', watermark: true }
+    );
 
     const suffix = `${formatNumber(config.state.point.x)}_${formatNumber(config.state.point.y)}`.replace(
       /\./g,
@@ -847,7 +865,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
     try {
       const link = document.createElement('a');
       link.href = offscreen.toDataURL('image/png');
-      link.download = `rotasi-geometri-${suffix}.png`;
+      link.download = `rotasi-geometri-${suffix}${printWhite ? '-putih' : ''}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -860,10 +878,10 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
     dragTarget !== 'none' ? 'cursor-grabbing' : hoverTarget !== 'none' ? 'cursor-grab' : 'cursor-default';
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-3 sm:px-5 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/50 transition-colors sm:p-4 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-200">
+          <span className="grid h-7 w-7 place-items-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400">
             <svg
               width="15"
               height="15"
@@ -882,17 +900,29 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
           Bidang Kartesius
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
             θ = {angleLabel(targetAngle)}
           </span>
-          <span className="hidden rounded-lg bg-indigo-50 px-2 py-1 text-indigo-600 sm:inline dark:bg-indigo-500/15 dark:text-indigo-300">
+          <span className="hidden rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-indigo-700 sm:inline dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-300">
             {targetAngle >= 0 ? 'berlawanan jarum jam' : 'searah jarum jam'}
           </span>
+          <label
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-sans text-[11px] font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
+            title="Unduh PNG berlatar putih jernih, khusus untuk cetak"
+          >
+            <input
+              type="checkbox"
+              checked={printWhite}
+              onChange={(event) => setPrintWhite(event.target.checked)}
+              className="h-3.5 w-3.5 accent-indigo-600"
+            />
+            Latar putih
+          </label>
           <button
             type="button"
             onClick={handleDownload}
             title="Unduh bidang kartesius sebagai gambar PNG"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-sans text-[11px] font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-sans text-[11px] font-bold text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
           >
             <Download size={13} />
             Unduh Gambar
@@ -900,7 +930,10 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
         </div>
       </div>
 
-      <div ref={containerRef} className="relative h-[330px] w-full sm:h-[420px] lg:h-[470px]">
+      <div
+        ref={containerRef}
+        className="relative h-[330px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner transition-colors sm:h-[420px] lg:h-[470px] dark:border-slate-800/80 dark:bg-slate-950"
+      >
         <canvas
           ref={canvasRef}
           className={`absolute inset-0 h-full w-full ${cursorClass}`}
@@ -909,30 +942,30 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
         />
 
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
-          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300 dark:shadow-none">
             <span className="h-2 w-2 rounded-full bg-blue-500" /> Bangun awal
           </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300 dark:shadow-none">
             <span className="h-2 w-2 rounded-full bg-red-500" /> Bayangan
           </span>
-          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300 dark:shadow-none">
             <span className="h-2 w-2 rounded-full bg-amber-500" /> Pusat
           </span>
         </div>
 
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200/80 bg-white/85 px-2 py-1 text-[10px] font-medium text-slate-500 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+        <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400 dark:shadow-none">
           Tarik titik P atau pusat · atur sudut lewat slider
         </div>
 
-        <div className="pointer-events-none absolute bottom-3 right-3 hidden rounded-lg border border-slate-200/80 bg-white/90 px-2.5 py-1.5 backdrop-blur sm:block dark:border-slate-700 dark:bg-slate-900/85">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="pointer-events-none absolute bottom-3 right-3 hidden rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 shadow-sm sm:block dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-none">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Invarian rotasi
           </p>
-          <p className="mt-0.5 font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-            r = {formatNumber(trim(radiusBefore, 3))} \u2192 r\u2032 = {formatNumber(trim(radiusAfter, 3))}
+          <p className="mt-0.5 font-mono text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+            r = {formatNumber(trim(radiusBefore, 3))} → r′ = {formatNumber(trim(radiusAfter, 3))}
           </p>
-          <p className="font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-            \u0394r = {formatNumber(radiusDelta)} \u00B7 jarak tetap
+          <p className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+            Δr = {formatNumber(radiusDelta)} · jarak tetap
           </p>
         </div>
       </div>

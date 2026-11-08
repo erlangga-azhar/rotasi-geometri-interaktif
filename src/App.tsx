@@ -9,6 +9,7 @@ import QuizEngine from './components/QuizEngine';
 import Footer from './components/Footer';
 import type { RotationState, ThemeMode } from './types/rotation';
 import { DEFAULT_STATE } from './utils/math';
+import { applyTheme, getInitialTheme } from './utils/theme';
 
 function scrollToSection(id: string) {
   const behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -19,19 +20,16 @@ function scrollToSection(id: string) {
 
 function App() {
   const [state, setState] = useState<RotationState>(DEFAULT_STATE);
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [quizReturn, setQuizReturn] = useState<{ index: number } | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>(() =>
-    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-  );
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    try {
-      localStorage.setItem('rotasi-theme', theme);
-    } catch {
-      /* preferensi tema tidak dapat disimpan */
-    }
+    applyTheme(theme);
   }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((previous) => (previous === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   const updateState = useCallback((patch: Partial<RotationState>) => {
     setQuizReturn(null);
@@ -49,12 +47,8 @@ function App() {
     scrollToSection('kuis');
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((previous) => (previous === 'dark' ? 'light' : 'dark'));
-  }, []);
-
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col transition-colors">
       <Header theme={theme} onToggleTheme={toggleTheme} />
       <main className="flex-1">
         <HeroSection state={state} theme={theme} onChange={updateState} />
@@ -66,15 +60,13 @@ function App() {
       <Footer />
 
       {quizReturn !== null && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
-          <button
-            type="button"
-            onClick={backToQuiz}
-            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-          >
-            <ArrowLeft size={15} /> Kembali ke soal {quizReturn.index + 1}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={backToQuiz}
+          className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-600/90 px-5 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition hover:bg-indigo-500"
+        >
+          <ArrowLeft size={15} /> Kembali ke soal {quizReturn.index + 1}
+        </button>
       )}
     </div>
   );
