@@ -17,10 +17,24 @@ export const clamp = (value: number, min: number, max: number): number =>
 /**
  * Normalisasi sudut ke rentang [0, 360).
  * Rumus `((deg % 360) + 360) % 360` aman untuk sudut negatif maupun > 360.
+ * Panggil di ingestion layer (state handler/slider/akumulasi animasi), bukan di
+ * safeCos/safeSin, agar nilai derajat besar tidak kehilangan presisi float.
  */
 export function normalizeDegree(deg: number): number {
   if (!Number.isFinite(deg)) return 0;
   return ((deg % 360) + 360) % 360;
+}
+
+/**
+ * Normalisasi input sudut bertanda. Nilai di dalam rentang slider (−360…360)
+ * dipertahankan apa adanya agar −90° tetap −90° dan +270° tidak berubah menjadi
+ * −90°; nilai di luar rentang dipetakan ke representasi bertanda yang setara.
+ */
+export function normalizeSignedDegree(deg: number): number {
+  if (!Number.isFinite(deg)) return 0;
+  const normalized = normalizeDegree(deg);
+  if (deg >= -360 && deg <= 360) return deg;
+  return deg < 0 && normalized !== 0 ? normalized - 360 : normalized;
 }
 
 /** Membulatkan sekaligus menormalkan -0 menjadi 0. */
@@ -31,9 +45,10 @@ export const trim = (value: number, precision = 4): number => {
 
 /**
  * cosinus dengan toleransi floating point: cos(90°) harus tepat 0.
+ * Tidak menormalkan sudut; normalisasi dilakukan di ingestion layer.
  */
 export function safeCos(deg: number): number {
-  const value = Math.cos(normalizeDegree(deg) * DEG);
+  const value = Math.cos(deg * DEG);
   if (Math.abs(value) < EPSILON) return 0;
   if (Math.abs(value - 1) < EPSILON) return 1;
   if (Math.abs(value + 1) < EPSILON) return -1;
@@ -42,9 +57,10 @@ export function safeCos(deg: number): number {
 
 /**
  * sinus dengan toleransi floating point: sin(180°) harus tepat 0.
+ * Tidak menormalkan sudut; normalisasi dilakukan di ingestion layer.
  */
 export function safeSin(deg: number): number {
-  const value = Math.sin(normalizeDegree(deg) * DEG);
+  const value = Math.sin(deg * DEG);
   if (Math.abs(value) < EPSILON) return 0;
   if (Math.abs(value - 1) < EPSILON) return 1;
   if (Math.abs(value + 1) < EPSILON) return -1;
@@ -52,8 +68,10 @@ export function safeSin(deg: number): number {
 }
 
 export function rotatePoint(point: Point2D, center: CenterPoint, angleDegree: number): Point2D {
-  const cos = safeCos(angleDegree);
-  const sin = safeSin(angleDegree);
+  /* Batas masuk operasi rotasi: trigonometri selalu menerima 0…360. */
+  const angle = normalizeDegree(angleDegree);
+  const cos = safeCos(angle);
+  const sin = safeSin(angle);
   const dx = point.x - center.a;
   const dy = point.y - center.b;
 

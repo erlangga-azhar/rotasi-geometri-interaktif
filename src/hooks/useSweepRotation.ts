@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
+import { normalizeDegree } from '../utils/math';
 import { useOnDemandFrame } from './useOnDemandFrame';
 import type { ViewportSize } from './useOnDemandFrame';
 
@@ -9,11 +10,8 @@ import type { ViewportSize } from './useOnDemandFrame';
  */
 const SPEED_TAU_MS = 700;
 
-/** Sudut disimpan monoton, lalu di-wrap agar presisi float tetap aman berjam-jam. */
-const ANGLE_WRAP = 360_000;
-
 export interface SweepFrame {
-  /** Sudut total terakumulasi dalam derajat (bisa > 360). */
+  /** Sudut ternormalisasi 0…360, sudah diamankan di ingestion layer. */
   angle: number;
   /** Jarak waktu frame dalam ms; 0 saat bangun dari idle. */
   deltaMs: number;
@@ -81,8 +79,8 @@ export function useSweepRotation({
       const alpha = 1 - Math.exp(-safeDt / SPEED_TAU_MS);
       velocityRef.current += (speedRef.current - velocityRef.current) * alpha;
 
-      angleRef.current += velocityRef.current * seconds;
-      if (angleRef.current > ANGLE_WRAP) angleRef.current -= ANGLE_WRAP;
+      /* Normalisasi di titik akumulasi, bukan di safeCos/safeSin. */
+      angleRef.current = normalizeDegree(angleRef.current + velocityRef.current * seconds);
 
       onFrameRef.current({ angle: angleRef.current, deltaMs: safeDt, viewport });
       return true;

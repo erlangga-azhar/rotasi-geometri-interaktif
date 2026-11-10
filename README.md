@@ -44,7 +44,7 @@ Kanvas HTML5 2D yang benar-benar bisa dimanipulasi, bukan gambar statis.
 | Kemampuan | Detail implementasi |
 | --- | --- |
 | **High-DPI 2×** | `devicePixelRatio` dibatasi maksimum 2, lalu `ctx.setTransform(dpr, …)` menjaga garis tetap tajam di layar Retina. |
-| **Mouse & touch** | `mousedown/mousemove/mouseup/mouseleave` + `touchstart/touchmove/touchend/touchcancel` dengan `{ passive: false }`. `touch-action: pan-y` membuat halaman tetap bisa di-scroll; `preventDefault()` hanya dipanggil saat jari mendarat di hit-box kontrol. ID touch aktif dilacak agar multi-touch tidak mengacaukan drag. |
+| **Mouse & touch** | `mousedown/mousemove/mouseup/mouseleave` + `touchstart/touchmove/touchend/touchcancel` dengan `{ passive: false }`. `touch-action: pan-y pinch-zoom` menjaga scroll vertikal/pinch dan memblokir swipe back/forward browser; `preventDefault()` hanya dipanggil saat jari mendarat di hit-box kontrol. `activeTouchId` dilacak lewat `changedTouches` agar jari kedua tidak menggeser P. |
 | **Hit-area 44px** | Kursor/jari dikonversi ke koordinat Kartesius lewat `pxToWorld()`, lalu jarak ke pegangan titik dan pusat diukur. Radius 22px untuk mouse dan 28px untuk sentuhan, sehingga target selalu ≥ 44×44px. |
 | **Presisi 0,5** | `snapToHalf()` membulatkan koordinat ke kelipatan `0.5`, dan `trim()` menormalkan `-0` menjadi `0`. |
 | **Anti-jitter** | `frozenLayoutRef` membekukan skala & origin selama drag, sehingga kamera tidak "mengejar" kursor; bidang di-fit ulang setelah pointer dilepas. |

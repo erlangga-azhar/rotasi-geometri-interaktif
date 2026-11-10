@@ -4,8 +4,8 @@ import type { ThemeMode } from '../types/rotation';
 import type { RealWorldMode } from '../contexts/types';
 import { REAL_WORLD_MODE_MAP } from '../contexts/modes';
 import { renderRealWorldScene, renderRealWorldStatic } from '../contexts/renderRealWorldScene';
-import { getStaticLayer } from '../canvas/staticLayer';
-import type { StaticLayerCache } from '../canvas/staticLayer';
+import { createLayerSpec, getStaticLayer } from '../canvas/staticLayer';
+import type { LayerCacheSpec, StaticLayerCache } from '../canvas/staticLayer';
 import type { ViewportSize } from '../hooks/useOnDemandFrame';
 import { useSweepRotation } from '../hooks/useSweepRotation';
 
@@ -33,6 +33,7 @@ function RealWorldCanvas({ mode, theme }: RealWorldCanvasProps) {
   const info = REAL_WORLD_MODE_MAP[mode];
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const staticLayerRef = useRef<StaticLayerCache | null>(null);
+  const layerSpecRef = useRef<LayerCacheSpec>(createLayerSpec());
   const [playing, setPlaying] = useState(() => !prefersReducedMotion());
   const [inView, setInView] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -60,15 +61,17 @@ function RealWorldCanvas({ mode, theme }: RealWorldCanvasProps) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const dark = theme === 'dark';
-      const layerKey = `${mode}|${dark ? 'dark' : 'light'}|${width.toFixed(1)}x${height.toFixed(1)}@${dpr}`;
-      const staticLayer = getStaticLayer(
-        staticLayerRef,
-        layerKey,
-        width,
-        height,
-        dpr,
-        (layerCtx) => renderRealWorldStatic(layerCtx, width, height, { mode, dark })
-      );
+      const spec = layerSpecRef.current;
+      spec.width = width;
+      spec.height = height;
+      spec.dpr = dpr;
+      spec.dark = dark;
+      /* Hanya mode jam yang mengubah konten statis (dial); mode lain berbagi grid. */
+      spec.clockMode = mode === 'clock';
+
+      const staticLayer = getStaticLayer(staticLayerRef, spec, (layerCtx) => {
+        renderRealWorldStatic(layerCtx, width, height, { mode, dark });
+      });
 
       renderRealWorldScene(
         ctx,
@@ -204,6 +207,7 @@ function RealWorldCanvas({ mode, theme }: RealWorldCanvasProps) {
         <canvas
           ref={canvasRef}
           className="absolute inset-0 h-full w-full"
+          style={{ touchAction: 'pan-y pinch-zoom' }}
           role="img"
           aria-label={`Animasi kontinu ${info.label}. ${info.description}`}
         />

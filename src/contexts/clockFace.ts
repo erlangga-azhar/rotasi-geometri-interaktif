@@ -94,7 +94,9 @@ export function drawClockHand(
   length: number,
   angleDeg: number,
   color: string,
-  width: number
+  width: number,
+  /** Warna halo kontras di bawah jarum; opsional. */
+  outlineColor?: string
 ) {
   const angle = (-90 + angleDeg) * DEG;
   const tail = Math.min(length * 0.18, 10);
@@ -102,9 +104,14 @@ export function drawClockHand(
   ctx.beginPath();
   ctx.moveTo(cx - Math.cos(angle) * tail, cy - Math.sin(angle) * tail);
   ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
+  ctx.lineCap = 'round';
+  if (outlineColor) {
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = width + 2.4;
+    ctx.stroke();
+  }
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
-  ctx.lineCap = 'round';
   ctx.stroke();
   ctx.restore();
 }

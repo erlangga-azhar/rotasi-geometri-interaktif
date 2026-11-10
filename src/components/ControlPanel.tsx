@@ -1,7 +1,7 @@
 import { useId, useRef } from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
 import type { CenterPoint, RotationState, ShapeType } from '../types/rotation';
-import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
+import { angleLabel, formatNumber, normalizeSignedDegree, rotatePoint } from '../utils/math';
 import NumberField from './NumberField';
 
 interface ControlPanelProps {
@@ -171,7 +171,9 @@ function ControlPanel({ state, onChange, embedded = false }: ControlPanelProps) 
           max="360"
           step="1"
           value={state.angleDegree}
-          onChange={(event) => onChange({ angleDegree: Number(event.target.value) })}
+          onChange={(event) =>
+            onChange({ angleDegree: normalizeSignedDegree(Number(event.target.value)) })
+          }
           className="range-rotasi mt-2"
         />
         <div className="mt-1 flex justify-between font-mono text-[10px] text-slate-600 dark:text-slate-400">

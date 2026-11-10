@@ -8,7 +8,7 @@ import ContextSection from './components/ContextSection';
 import QuizEngine from './components/QuizEngine';
 import Footer from './components/Footer';
 import type { RotationState, ThemeMode } from './types/rotation';
-import { DEFAULT_STATE } from './utils/math';
+import { DEFAULT_STATE, normalizeSignedDegree } from './utils/math';
 import { THEME_STORAGE_KEY, applyTheme, getInitialTheme } from './utils/theme';
 
 function scrollToSection(id: string) {
@@ -46,7 +46,14 @@ function App() {
 
   const updateState = useCallback((patch: Partial<RotationState>) => {
     setQuizReturn(null);
-    setState((previous) => ({ ...previous, ...patch }));
+    setState((previous) => {
+      const next = { ...previous, ...patch };
+      /* Ingestion layer: sudut dinormalkan sekali saat masuk state. */
+      if (patch.angleDegree !== undefined) {
+        next.angleDegree = normalizeSignedDegree(patch.angleDegree);
+      }
+      return next;
+    });
   }, []);
 
   const visualizeFromQuiz = useCallback((next: RotationState, questionIndex: number) => {

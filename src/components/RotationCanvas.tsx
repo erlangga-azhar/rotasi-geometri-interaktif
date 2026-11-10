@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Pause, Play, Timer } from 'lucide-react';
 import type { Point2D, RotationState, ThemeMode } from '../types/rotation';
 import { drawClockFace, drawClockHand, clockTip } from '../contexts/clockFace';
-import { getStaticLayer } from '../canvas/staticLayer';
-import type { StaticLayerCache } from '../canvas/staticLayer';
+import { createLayerSpec, getStaticLayer } from '../canvas/staticLayer';
+import type { LayerCacheSpec, StaticLayerCache } from '../canvas/staticLayer';
 import { useOnDemandFrame } from '../hooks/useOnDemandFrame';
 import {
   DEG,
@@ -59,8 +59,6 @@ interface DragSession {
   target: Exclude<DragTarget, 'none'>;
   layout: SceneLayout;
   offset: Point2D;
-  /** ID touch aktif, agar multi-touch tidak mengacaukan drag. */
-  touchId?: number;
 }
 
 interface RenderOptions {
@@ -144,6 +142,44 @@ function drawTag(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, left + 7, top + boxHeight / 2 + 0.5);
+}
+
+/** Pill label dengan background + stroke teks kontras agar terbaca di atas poligon. */
+function drawContrastPill(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  color: string,
+  dark: boolean,
+  width: number,
+  height: number
+) {
+  ctx.save();
+  ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+  const boxWidth = ctx.measureText(text).width + 16;
+  const boxHeight = 19;
+  const left = clamp(x, 6, Math.max(6, width - boxWidth - 6));
+  const top = clamp(y, 6, Math.max(6, height - boxHeight - 6));
+  const textY = top + boxHeight / 2 + 0.5;
+
+  traceRoundRect(ctx, left, top, boxWidth, boxHeight, 6);
+  ctx.fillStyle = dark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.97)';
+  ctx.fill();
+  ctx.strokeStyle = `${color}66`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  /* Halo kontras: teks tetap terbaca saat menimpa garis poligon/vektor lain. */
+  ctx.strokeStyle = dark ? 'rgba(2,6,23,0.9)' : 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = 2.4;
+  ctx.strokeText(text, left + 8, textY);
+  ctx.fillText(text, left + 8, textY);
+  ctx.restore();
 }
 
 /** Skala dan titik asal bidang agar seluruh bangun + bayangan selalu terlihat. */
@@ -403,45 +439,41 @@ function drawSceneStatic(
   }
 }
 
-/** Vektor bantu sudut manual — ungu, terpisah dari jarum jam amber. */
+/** Vektor sudut manual — putus-putus [6,4], kontras dengan jarum jam solid. */
 function drawUserAngleIndicator(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   centerY: number,
   length: number,
   angleDeg: number,
-  dark: boolean,
-  width: number,
-  height: number
+  dark: boolean
 ) {
   if (length < 10) return;
   const color = dark ? '#c4b5fd' : '#7c3aed';
+  const outline = dark ? 'rgba(2,6,23,0.72)' : 'rgba(255,255,255,0.92)';
   const canvasAngle = -angleDeg * DEG;
   const endX = centerX + Math.cos(canvasAngle) * length;
   const endY = centerY + Math.sin(canvasAngle) * length;
 
   ctx.save();
-  ctx.setLineDash([5, 5]);
+  ctx.setLineDash([6, 4]);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(endX, endY);
   ctx.stroke();
-  ctx.setLineDash([]);
   ctx.restore();
 
-  drawArrowHead(ctx, endX, endY, canvasAngle, 7, color);
-  drawTag(
-    ctx,
-    `θ manual ${angleLabel(angleDeg)}`,
-    endX,
-    endY,
-    color,
-    dark,
-    width,
-    height
-  );
+  drawArrowHead(ctx, endX, endY, canvasAngle, 9, outline);
+  drawArrowHead(ctx, endX, endY, canvasAngle, 6.5, color);
 }
 
 function renderScene(
@@ -481,16 +513,7 @@ function renderScene(
     const handLength = dialRadius * 0.72;
 
     /* Vektor sudut manual pengguna (indigo) — bukan jarum jam. */
-    drawUserAngleIndicator(
-      ctx,
-      centerX,
-      centerY,
-      dialRadius * 0.62,
-      animatedAngle,
-      dark,
-      width,
-      height
-    );
+    drawUserAngleIndicator(ctx, centerX, centerY, dialRadius * 0.62, animatedAngle, dark);
 
     /* Jejak 55° terakhir dari jarum. */
     const trailStart = (-90 + sweep - 55) * DEG;
@@ -510,9 +533,19 @@ function renderScene(
       handLength * 0.62,
       sweep / 12,
       dark ? '#64748b' : '#94a3b8',
-      3.4
+      3.4,
+      dark ? 'rgba(2,6,23,0.55)' : 'rgba(255,255,255,0.8)'
     );
-    drawClockHand(ctx, centerX, centerY, handLength, sweep, dark ? '#fbbf24' : '#d97706', 2.6);
+    drawClockHand(
+      ctx,
+      centerX,
+      centerY,
+      handLength,
+      sweep,
+      dark ? '#fbbf24' : '#d97706',
+      2.6,
+      dark ? 'rgba(2,6,23,0.8)' : 'rgba(255,255,255,0.9)'
+    );
 
     const tip = clockTip(centerX, centerY, handLength, sweep);
     ctx.save();
@@ -537,13 +570,6 @@ function renderScene(
       height
     );
 
-    ctx.save();
-    ctx.font = '600 9px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = dark ? '#fcd34d' : '#b45309';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`θ jam ${angleLabel(sweep)} · sweep kontinu`, centerX + 12, centerY - 12);
-    ctx.restore();
   }
 
   const rotatedVertices = vertices.map((vertex) => rotatePoint(vertex, center, animatedAngle));
@@ -750,6 +776,42 @@ function renderScene(
     }
   }
 
+  /* HUD label ganda: selalu ditumpuk vertikal agar tidak saling menimpa. */
+  if (options.clock) {
+    const sweep = normalizeDegree(options.clock.angle);
+    const manualColor = dark ? '#c4b5fd' : '#7c3aed';
+    const clockColor = dark ? '#fbbf24' : '#b45309';
+    const pillHeight = 19;
+    const gap = 3;
+    const hudX = centerX - dialRadius + 8;
+    const hudY = clamp(
+      centerY + dialRadius * 0.5,
+      6,
+      Math.max(6, height - pillHeight * 2 - gap - 6)
+    );
+
+    drawContrastPill(
+      ctx,
+      `● θ manual ${angleLabel(animatedAngle)}`,
+      hudX,
+      hudY,
+      manualColor,
+      dark,
+      width,
+      height
+    );
+    drawContrastPill(
+      ctx,
+      `● θ jam ${angleLabel(sweep)}`,
+      hudX,
+      hudY + pillHeight + gap,
+      clockColor,
+      dark,
+      width,
+      height
+    );
+  }
+
   if (options.watermark) {
     ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
     ctx.fillStyle = dark ? 'rgba(148,163,184,0.85)' : 'rgba(71,85,105,0.92)';
@@ -764,8 +826,12 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
   const exportingRef = useRef(false);
   const configRef = useRef<SceneConfig | null>(null);
   const staticLayerRef = useRef<StaticLayerCache | null>(null);
+  /** Objek spec dipakai ulang; tidak ada string key/join yang dibuat per frame. */
+  const layerSpecRef = useRef<LayerCacheSpec>(createLayerSpec());
   /** Sudut manual yang di-tween — terpisah dari sapuan jam otomatis. */
   const animatedUserAngleRef = useRef<number>(state.angleDegree * state.direction);
+  /** Hanya satu jari yang boleh menggeser P; jari kedua diabaikan. */
+  const activeTouchIdRef = useRef<number | null>(null);
   const dragRef = useRef<DragSession | null>(null);
   const frozenLayoutRef = useRef<SceneLayout | null>(null);
   const interactionRef = useRef<{ drag: DragTarget; hover: DragTarget }>({ drag: 'none', hover: 'none' });
@@ -833,8 +899,10 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
 
       /* Jarum overlay jam: sapuan kontinu, berhenti total saat dijeda/off-screen. */
       if (clockModeRef.current && clockPlayingRef.current && visibleRef.current) {
-        clockSweepAngleRef.current =
-          (clockSweepAngleRef.current + (CLOCK_SWEEP_SPEED * safeDt) / 1000) % 360;
+        /* Normalisasi di akumulasi waktu, bukan di safeCos/safeSin. */
+        clockSweepAngleRef.current = normalizeDegree(
+          clockSweepAngleRef.current + (CLOCK_SWEEP_SPEED * safeDt) / 1000
+        );
         animating = true;
       }
 
@@ -843,21 +911,22 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
 
       const layout = frozenLayoutRef.current ?? computeLayout(width, height, config.state);
       const geometry = computeSceneGeometry(width, height, config.state, layout);
-      const dialKey = clockModeRef.current
-        ? `${Math.round(geometry.centerX)}:${Math.round(geometry.centerY)}:${Math.round(geometry.dialRadius)}`
-        : 'off';
-      const layerKey = [
-        width.toFixed(1),
-        height.toFixed(1),
-        dpr,
-        config.dark ? 'dark' : 'light',
-        layout.scale.toFixed(3),
-        layout.originX.toFixed(1),
-        layout.originY.toFixed(1),
-        dialKey,
-      ].join('|');
 
-      const staticLayer = getStaticLayer(staticLayerRef, layerKey, width, height, dpr, (layerCtx) => {
+      /* Perbarui spec numerik di tempat; cache hanya rebuild bila berubah. */
+      const spec = layerSpecRef.current;
+      spec.width = width;
+      spec.height = height;
+      spec.dpr = dpr;
+      spec.scale = layout.scale;
+      spec.originX = layout.originX;
+      spec.originY = layout.originY;
+      spec.dark = config.dark;
+      spec.clockMode = clockModeRef.current;
+      spec.dialX = clockModeRef.current ? geometry.centerX : 0;
+      spec.dialY = clockModeRef.current ? geometry.centerY : 0;
+      spec.dialRadius = clockModeRef.current ? geometry.dialRadius : 0;
+
+      const staticLayer = getStaticLayer(staticLayerRef, spec, (layerCtx) => {
         drawSceneStatic(layerCtx, width, height, config, layout, clockModeRef.current);
       });
 
@@ -1036,14 +1105,14 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
       invalidate();
     };
 
-    const endDragging = () => {
+    const endDragging = (fromTouch = false) => {
       const session = dragRef.current;
       if (!session) return;
       dragRef.current = null;
       frozenLayoutRef.current = null;
       setDragTarget('none');
       /* Di layar sentuh tidak ada hover: hilangkan cincin setelah jari diangkat. */
-      if (session.touchId !== undefined) setHoverTarget('none');
+      if (fromTouch) setHoverTarget('none');
       invalidate();
     };
 
@@ -1087,41 +1156,50 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
     };
 
     const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) return;
-      const touch = event.touches[0];
+      /* Jari kedua saat drag aktif tidak boleh membuat P meloncat. */
+      if (dragRef.current || activeTouchIdRef.current !== null) return;
+      const touch = event.changedTouches[0];
       if (!touch) return;
 
       const local = localPoint(touch.clientX, touch.clientY);
       /*
        * Hanya sentuhan yang mendarat di hit-box kontrol (radius 28px) yang
-       * di-preventDefault. Di luar itu, pan-y membiarkan halaman scroll normal.
+       * di-preventDefault. Di luar itu, pan-y pinch-zoom membiarkan halaman
+       * scroll/pinch normal dan mencegah swipe back/forward browser.
        */
       if (startDragging(local.x, local.y, local.width, local.height, TOUCH_HIT_RADIUS)) {
-        if (dragRef.current) dragRef.current.touchId = touch.identifier;
+        activeTouchIdRef.current = touch.identifier;
         event.preventDefault();
       }
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      const session = dragRef.current;
-      if (!session) return;
+      const activeId = activeTouchIdRef.current;
+      if (activeId === null || !dragRef.current) return;
 
-      const touch = Array.from(event.touches).find((item) => item.identifier === session.touchId);
+      /* changedTouches: abaikan pergerakan jari lain yang bukan pemilik drag. */
+      const touch = Array.from(event.changedTouches).find(
+        (item) => item.identifier === activeId
+      );
       if (!touch) return;
 
-      /* Selama drag aktif, cegah scroll; touch-action: pan-y mengizinkannya di luar handle. */
       event.preventDefault();
       const local = localPoint(touch.clientX, touch.clientY);
       moveDragging(local.x, local.y);
     };
 
     const onTouchEnd = (event: TouchEvent) => {
-      const session = dragRef.current;
-      if (!session) return;
-      const stillActive = Array.from(event.touches).some(
-        (item) => item.identifier === session.touchId
+      const activeId = activeTouchIdRef.current;
+      if (activeId === null) return;
+
+      /* Hanya akhiri drag bila jari pemilik drag yang terangkat/dibatalkan. */
+      const ended = Array.from(event.changedTouches).some(
+        (item) => item.identifier === activeId
       );
-      if (!stillActive) endDragging();
+      if (!ended) return;
+
+      activeTouchIdRef.current = null;
+      endDragging(true);
     };
 
     canvas.addEventListener('mousedown', onMouseDown);
@@ -1142,6 +1220,7 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
       canvas.removeEventListener('touchcancel', onTouchEnd);
+      activeTouchIdRef.current = null;
       dragRef.current = null;
       frozenLayoutRef.current = null;
     };
@@ -1297,10 +1376,11 @@ function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvas
       </div>
 
       <div className="relative h-[330px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner transition-colors sm:h-[420px] lg:h-[470px] dark:border-slate-800/80 dark:bg-slate-950">
-        {/* pan-y: scroll halaman tetap normal di area kanvas yang kosong. */}
+        {/* pan-y pinch-zoom: scroll vertikal + pinch tetap jalan, swipe back/forward diblokir. */}
         <canvas
           ref={canvasRef}
-          className={`absolute inset-0 h-full w-full touch-pan-y select-none ${cursorClass}`}
+          className={`absolute inset-0 h-full w-full select-none ${cursorClass}`}
+          style={{ touchAction: 'pan-y pinch-zoom' }}
           role="img"
           aria-describedby="canvas-hint"
           aria-label="Bidang kartesius interaktif dengan busur derajat; tarik titik P atau pusat rotasi untuk memindahkannya"
