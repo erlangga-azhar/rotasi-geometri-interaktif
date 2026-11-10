@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { RotateCcw, RotateCw } from 'lucide-react';
 import type { CenterPoint, RotationState, ShapeType } from '../types/rotation';
 import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
@@ -7,6 +7,8 @@ import NumberField from './NumberField';
 interface ControlPanelProps {
   state: RotationState;
   onChange: (patch: Partial<RotationState>) => void;
+  /** Tanpa kartu luar — dipakai di dalam bottom sheet ponsel. */
+  embedded?: boolean;
 }
 
 interface ShapeOption {
@@ -24,7 +26,15 @@ const SEGMENT_BASE = 'rounded-lg px-2 py-2 text-[11px] font-bold transition sm:t
 const SEGMENT_INACTIVE =
   'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200';
 
-function ControlPanel({ state, onChange }: ControlPanelProps) {
+function ControlPanel({ state, onChange, embedded = false }: ControlPanelProps) {
+  /* Desktop & mobile sheet dapat hidup bersamaan → semua ID form harus unik. */
+  const uid = useId();
+  const pointXId = `${uid}-point-x`;
+  const pointYId = `${uid}-point-y`;
+  const centerAId = `${uid}-center-a`;
+  const centerBId = `${uid}-center-b`;
+  const angleId = `${uid}-angle`;
+
   const effective = state.angleDegree * state.direction;
   const result = rotatePoint(state.point, state.center, effective);
   const isOrigin = state.center.a === 0 && state.center.b === 0;
@@ -40,7 +50,13 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+    <div
+      className={
+        embedded
+          ? 'flex flex-col gap-4'
+          : 'flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20'
+      }
+    >
       <div>
         <p className="field-label">Objek yang dirotasi</p>
         <div className="grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
@@ -67,11 +83,13 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
         <p className="field-label">Titik awal P(x, y)</p>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
+            id={pointXId}
             label="x"
             value={state.point.x}
             onChange={(value) => onChange({ point: { ...state.point, x: value } })}
           />
           <NumberField
+            id={pointYId}
             label="y"
             value={state.point.y}
             onChange={(value) => onChange({ point: { ...state.point, y: value } })}
@@ -115,11 +133,13 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
+            id={centerAId}
             label="a"
             value={state.center.a}
             onChange={(value) => onChange({ center: { ...state.center, a: value } })}
           />
           <NumberField
+            id={centerBId}
             label="b"
             value={state.center.b}
             onChange={(value) => onChange({ center: { ...state.center, b: value } })}
@@ -134,14 +154,18 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
 
       <div>
         <div className="mb-1 flex items-end justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+          <label
+            htmlFor={angleId}
+            className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+          >
             Sudut rotasi θ
-          </p>
+          </label>
           <span className="font-mono text-lg font-bold text-indigo-600 dark:text-indigo-400">
             {angleLabel(state.angleDegree)}
           </span>
         </div>
         <input
+          id={angleId}
           type="range"
           min="-360"
           max="360"
@@ -149,7 +173,6 @@ function ControlPanel({ state, onChange }: ControlPanelProps) {
           value={state.angleDegree}
           onChange={(event) => onChange({ angleDegree: Number(event.target.value) })}
           className="range-rotasi mt-2"
-          aria-label="Sudut rotasi dalam derajat"
         />
         <div className="mt-1 flex justify-between font-mono text-[10px] text-slate-600 dark:text-slate-400">
           <span>-360°</span>

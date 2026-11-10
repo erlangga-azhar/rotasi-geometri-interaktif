@@ -2,6 +2,7 @@ import { Sparkles } from 'lucide-react';
 import type { RotationState, ThemeMode } from '../types/rotation';
 import { angleLabel, formatNumber, rotatePoint } from '../utils/math';
 import ControlPanel from './ControlPanel';
+import MobileControlSheet from './MobileControlSheet';
 import RotationCanvas from './RotationCanvas';
 
 interface HeroSectionProps {
@@ -43,7 +44,7 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-600/15" />
       <div className="pointer-events-none absolute -right-20 top-32 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl dark:bg-violet-600/15" />
 
-      <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 sm:pt-14 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 sm:pt-14 lg:px-8 lg:pb-14">
         <div className="mx-auto mb-8 max-w-3xl text-center">
           <span className="chip">
             <Sparkles size={13} className="text-indigo-600 dark:text-indigo-400" />
@@ -80,8 +81,12 @@ function HeroSection({ state, theme, onChange }: HeroSectionProps) {
             </div>
           </div>
 
-          <ControlPanel state={state} onChange={onChange} />
+          <div className="hidden lg:block">
+            <ControlPanel state={state} onChange={onChange} />
+          </div>
         </div>
+
+        <MobileControlSheet state={state} onChange={onChange} />
       </div>
     </section>
   );

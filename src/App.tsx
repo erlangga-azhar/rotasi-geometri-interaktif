@@ -67,7 +67,7 @@ function App() {
         <HeroSection state={state} theme={theme} onChange={updateState} />
         <TheorySection state={state} />
         <StepSolver />
-        <ContextSection />
+        <ContextSection theme={theme} />
         <QuizEngine onVisualize={visualizeFromQuiz} />
       </main>
       <Footer />

@@ -40,7 +40,8 @@
   }
 
   .number-input {
-    @apply w-full rounded-lg border border-slate-500 bg-white px-3 py-2 font-mono text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 dark:border-slate-500 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400;
+    /* 16px di ponsel agar Safari iOS tidak auto-zoom saat input difokuskan. */
+    @apply w-full rounded-lg border border-slate-500 bg-white px-3 py-2 font-mono text-base text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 sm:text-sm dark:border-slate-500 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400;
   }
 
   .section-shell {

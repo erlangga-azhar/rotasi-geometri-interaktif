@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { clamp } from '../utils/math';
 
 interface NumberFieldProps {
+  /** ID eksplisit dari ControlPanel; fallback ke useId() agar tetap unik. */
+  id?: string;
   label: string;
   value: number;
   onChange: (value: number) => void;
@@ -10,7 +12,9 @@ interface NumberFieldProps {
   step?: number;
 }
 
-function NumberField({ label, value, onChange, min = -99, max = 99, step = 1 }: NumberFieldProps) {
+function NumberField({ id, label, value, onChange, min = -99, max = 99, step = 1 }: NumberFieldProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   const [text, setText] = useState(() => String(value));
 
   useEffect(() => {
@@ -33,9 +37,12 @@ function NumberField({ label, value, onChange, min = -99, max = 99, step = 1 }: 
   };
 
   return (
-    <label className="block">
-      <span className="field-label">{label}</span>
+    <div className="block">
+      <label htmlFor={inputId} className="field-label">
+        {label}
+      </label>
       <input
+        id={inputId}
         type="number"
         inputMode="decimal"
         step={step}
@@ -44,7 +51,7 @@ function NumberField({ label, value, onChange, min = -99, max = 99, step = 1 }: 
         onBlur={handleBlur}
         className="number-input"
       />
-    </label>
+    </div>
   );
 }
 

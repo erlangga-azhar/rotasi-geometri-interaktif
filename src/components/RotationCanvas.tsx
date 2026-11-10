@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Pause, Play, Timer } from 'lucide-react';
 import type { Point2D, RotationState, ThemeMode } from '../types/rotation';
+import { drawClockFace, drawClockHand, clockTip } from '../contexts/clockFace';
+import { getStaticLayer } from '../canvas/staticLayer';
+import type { StaticLayerCache } from '../canvas/staticLayer';
+import { useOnDemandFrame } from '../hooks/useOnDemandFrame';
 import {
   DEG,
   angleLabel,
   clamp,
   formatNumber,
   niceStep,
+  normalizeDegree,
   rotatePoint,
   shapeLabels,
   shapeVertices,
@@ -16,8 +21,12 @@ import {
 const BLUE = '#3b82f6';
 const RED = '#ef4444';
 const AMBER = '#f59e0b';
-const HIT_THRESHOLD = 18;
+/* Hit-area minimum 44×44 px: radius 22 px (mouse) dan 28 px (jari). */
+const HIT_RADIUS = 22;
+const TOUCH_HIT_RADIUS = 28;
 const DRAG_SNAP = 0.5;
+/** Kecepatan sapuan overlay jam pada kanvas utama (derajat/detik). */
+const CLOCK_SWEEP_SPEED = 36;
 
 type DragTarget = 'none' | 'point' | 'center';
 
@@ -25,11 +34,18 @@ interface RotationCanvasProps {
   state: RotationState;
   theme: ThemeMode;
   onChange: (patch: Partial<RotationState>) => void;
+  /**
+   * Aktifkan overlay jam/kompas yang menyapu kontinu di kanvas utama.
+   * @example
+   * <RotationCanvas state={state} theme={theme} onChange={onChange} clockOverlay />
+   */
+  clockOverlay?: boolean;
 }
 
 interface SceneConfig {
   state: RotationState;
-  targetAngle: number;
+  /** Sudut manual target dari slider/drag (bukan sudut jam). */
+  userAngle: number;
   dark: boolean;
 }
 
@@ -43,6 +59,8 @@ interface DragSession {
   target: Exclude<DragTarget, 'none'>;
   layout: SceneLayout;
   offset: Point2D;
+  /** ID touch aktif, agar multi-touch tidak mengacaukan drag. */
+  touchId?: number;
 }
 
 interface RenderOptions {
@@ -50,6 +68,9 @@ interface RenderOptions {
   watermark?: boolean;
   interaction?: { drag: DragTarget; hover: DragTarget };
   pulse?: number;
+  clock?: { angle: number };
+  /** Kanvas cache berisi grid + dial jam; bila ada, konten statis dilewati. */
+  staticLayer?: HTMLCanvasElement;
 }
 
 function traceRoundRect(
@@ -169,8 +190,14 @@ const snapToHalf = (value: number): number => {
   return Object.is(snapped, -0) ? 0 : snapped;
 };
 
-/** Titik pegangan yang terdekat dalam radius 18px, dengan prioritas jarak terdekat. */
-function resolveHandle(layout: SceneLayout, state: RotationState, pxX: number, pxY: number): DragTarget {
+/** Titik pegangan terdekat dalam radius hit-area (default 22px), prioritas jarak terdekat. */
+function resolveHandle(
+  layout: SceneLayout,
+  state: RotationState,
+  pxX: number,
+  pxY: number,
+  radius = HIT_RADIUS
+): DragTarget {
   const anchor = shapeVertices(state.shape, state.point)[0];
   const anchorPx = worldToPx(layout, anchor.x, anchor.y);
   const centerPx = worldToPx(layout, state.center.a, state.center.b);
@@ -178,8 +205,8 @@ function resolveHandle(layout: SceneLayout, state: RotationState, pxX: number, p
   const distanceToPoint = Math.hypot(pxX - anchorPx.x, pxY - anchorPx.y);
   const distanceToCenter = Math.hypot(pxX - centerPx.x, pxY - centerPx.y);
 
-  const pointHit = distanceToPoint <= HIT_THRESHOLD;
-  const centerHit = distanceToCenter <= HIT_THRESHOLD;
+  const pointHit = distanceToPoint <= radius;
+  const centerHit = distanceToCenter <= radius;
 
   if (pointHit && centerHit) return distanceToPoint <= distanceToCenter ? 'point' : 'center';
   if (pointHit) return 'point';
@@ -218,6 +245,15 @@ function drawHalo(
     ctx.lineWidth = 2;
     ctx.stroke();
   } else {
+    /* Cincin tipis 44px: menandai hit-area yang bisa disentuh jari. */
+    ctx.beginPath();
+    ctx.arc(x, y, HIT_RADIUS, 0, Math.PI * 2);
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = `rgba(${rgb},0.22)`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
     ctx.beginPath();
     ctx.arc(x, y, 13, 0, Math.PI * 2);
     ctx.strokeStyle = `rgba(${rgb},0.45)`;
@@ -228,28 +264,56 @@ function drawHalo(
   ctx.restore();
 }
 
-function renderScene(
+interface SceneGeometry {
+  vertices: Point2D[];
+  anchor: Point2D;
+  centerX: number;
+  centerY: number;
+  anchorX: number;
+  anchorY: number;
+  radiusPx: number;
+  dialRadius: number;
+}
+
+function computeSceneGeometry(
+  width: number,
+  height: number,
+  state: RotationState,
+  layout: SceneLayout
+): SceneGeometry {
+  const vertices = shapeVertices(state.shape, state.point);
+  const anchor = vertices[0];
+  const centerX = layout.originX + state.center.a * layout.scale;
+  const centerY = layout.originY - state.center.b * layout.scale;
+  const anchorX = layout.originX + anchor.x * layout.scale;
+  const anchorY = layout.originY - anchor.y * layout.scale;
+  const radiusPx = Math.hypot(anchorX - centerX, anchorY - centerY);
+
+  return {
+    vertices,
+    anchor,
+    centerX,
+    centerY,
+    anchorX,
+    anchorY,
+    radiusPx,
+    dialRadius: clamp(radiusPx, 48, Math.min(width, height) * 0.42),
+  };
+}
+
+/** Layer statis: grid, sumbu, label tick, dan (opsional) dial jam. */
+function drawSceneStatic(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   config: SceneConfig,
-  animatedAngle: number,
   layout: SceneLayout,
-  options: RenderOptions = {}
+  withClockDial: boolean
 ) {
-  const { state, dark } = config;
-  const { point, center, shape } = state;
+  const { dark } = config;
   const palette = dark
     ? { grid: 'rgba(148,163,184,0.13)', axis: '#64748b', tick: '#94a3b8', axisLabel: '#94a3b8' }
     : { grid: 'rgba(100,116,139,0.18)', axis: '#64748b', tick: '#475569', axisLabel: '#475569' };
-
-  ctx.clearRect(0, 0, width, height);
-  if (options.background) {
-    ctx.fillStyle = options.background;
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  const vertices = shapeVertices(shape, point);
 
   const toX = (value: number) => layout.originX + value * layout.scale;
   const toY = (value: number) => layout.originY - value * layout.scale;
@@ -333,12 +397,154 @@ function renderScene(
     ctx.fillText('y', clamp(axisX + 8, 4, width - 16), 6);
   }
 
-  const anchor = vertices[0];
-  const centerX = toX(center.a);
-  const centerY = toY(center.b);
-  const anchorX = toX(anchor.x);
-  const anchorY = toY(anchor.y);
-  const radiusPx = Math.hypot(anchorX - centerX, anchorY - centerY);
+  if (withClockDial) {
+    const geometry = computeSceneGeometry(width, height, config.state, layout);
+    drawClockFace(ctx, geometry.centerX, geometry.centerY, geometry.dialRadius, { dark, compass: true });
+  }
+}
+
+/** Vektor bantu sudut manual — ungu, terpisah dari jarum jam amber. */
+function drawUserAngleIndicator(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  length: number,
+  angleDeg: number,
+  dark: boolean,
+  width: number,
+  height: number
+) {
+  if (length < 10) return;
+  const color = dark ? '#c4b5fd' : '#7c3aed';
+  const canvasAngle = -angleDeg * DEG;
+  const endX = centerX + Math.cos(canvasAngle) * length;
+  const endY = centerY + Math.sin(canvasAngle) * length;
+
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  drawArrowHead(ctx, endX, endY, canvasAngle, 7, color);
+  drawTag(
+    ctx,
+    `θ manual ${angleLabel(angleDeg)}`,
+    endX,
+    endY,
+    color,
+    dark,
+    width,
+    height
+  );
+}
+
+function renderScene(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  config: SceneConfig,
+  animatedAngle: number,
+  layout: SceneLayout,
+  options: RenderOptions = {}
+) {
+  const { state, dark } = config;
+  const { center, shape } = state;
+
+  ctx.clearRect(0, 0, width, height);
+  if (options.background) {
+    ctx.fillStyle = options.background;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  const geometry = computeSceneGeometry(width, height, state, layout);
+
+  if (options.staticLayer) {
+    /* Grid + dial statis ditempel sekali dari kanvas tersembunyi. */
+    ctx.drawImage(options.staticLayer, 0, 0, width, height);
+  } else {
+    drawSceneStatic(ctx, width, height, config, layout, Boolean(options.clock));
+  }
+
+  const toX = (value: number) => layout.originX + value * layout.scale;
+  const toY = (value: number) => layout.originY - value * layout.scale;
+  const { vertices, anchor, centerX, centerY, anchorX, anchorY, radiusPx, dialRadius } = geometry;
+
+  /* Overlay jam/kompas: dial statis ada di layer cache, di sini hanya gerak. */
+  if (options.clock) {
+    const sweep = normalizeDegree(options.clock.angle);
+    const handLength = dialRadius * 0.72;
+
+    /* Vektor sudut manual pengguna (indigo) — bukan jarum jam. */
+    drawUserAngleIndicator(
+      ctx,
+      centerX,
+      centerY,
+      dialRadius * 0.62,
+      animatedAngle,
+      dark,
+      width,
+      height
+    );
+
+    /* Jejak 55° terakhir dari jarum. */
+    const trailStart = (-90 + sweep - 55) * DEG;
+    const trailEnd = (-90 + sweep) * DEG;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, handLength, trailStart, trailEnd);
+    ctx.strokeStyle = dark ? 'rgba(251,191,36,0.85)' : 'rgba(217,119,6,0.85)';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.restore();
+
+    drawClockHand(
+      ctx,
+      centerX,
+      centerY,
+      handLength * 0.62,
+      sweep / 12,
+      dark ? '#64748b' : '#94a3b8',
+      3.4
+    );
+    drawClockHand(ctx, centerX, centerY, handLength, sweep, dark ? '#fbbf24' : '#d97706', 2.6);
+
+    const tip = clockTip(centerX, centerY, handLength, sweep);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = AMBER;
+    ctx.fill();
+    ctx.strokeStyle = dark ? '#0f172a' : '#ffffff';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    const tipWorld = pxToWorld(layout, tip.x, tip.y);
+    drawTag(
+      ctx,
+      `P′(${formatNumber(tipWorld.x)}, ${formatNumber(tipWorld.y)})`,
+      tip.x,
+      tip.y,
+      dark ? '#fbbf24' : '#b45309',
+      dark,
+      width,
+      height
+    );
+
+    ctx.save();
+    ctx.font = '600 9px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = dark ? '#fcd34d' : '#b45309';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`θ jam ${angleLabel(sweep)} · sweep kontinu`, centerX + 12, centerY - 12);
+    ctx.restore();
+  }
 
   const rotatedVertices = vertices.map((vertex) => rotatePoint(vertex, center, animatedAngle));
   const rotatedAnchor = rotatedVertices[0];
@@ -553,25 +759,123 @@ function renderScene(
   }
 }
 
-function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
+function RotationCanvas({ state, theme, onChange, clockOverlay }: RotationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const sizeRef = useRef({ width: 0, height: 0 });
   const exportingRef = useRef(false);
   const configRef = useRef<SceneConfig | null>(null);
-  const animatedRef = useRef<number>(state.angleDegree * state.direction);
-  const dirtyRef = useRef(true);
+  const staticLayerRef = useRef<StaticLayerCache | null>(null);
+  /** Sudut manual yang di-tween — terpisah dari sapuan jam otomatis. */
+  const animatedUserAngleRef = useRef<number>(state.angleDegree * state.direction);
   const dragRef = useRef<DragSession | null>(null);
   const frozenLayoutRef = useRef<SceneLayout | null>(null);
   const interactionRef = useRef<{ drag: DragTarget; hover: DragTarget }>({ drag: 'none', hover: 'none' });
   const onChangeRef = useRef(onChange);
   const reducedMotionRef = useRef(false);
+  const clockModeRef = useRef(Boolean(clockOverlay));
+  const clockPlayingRef = useRef(true);
+  /** State animasi waktu; tidak pernah menimpa sudut manual pengguna. */
+  const clockSweepAngleRef = useRef(0);
+  const visibleRef = useRef(true);
   const [dragTarget, setDragTarget] = useState<DragTarget>('none');
   const [hoverTarget, setHoverTarget] = useState<DragTarget>('none');
   const [printWhite, setPrintWhite] = useState(false);
+  const [clockMode, setClockMode] = useState(Boolean(clockOverlay));
+  const [clockPlaying, setClockPlaying] = useState(true);
 
-  const targetAngle = state.angleDegree * state.direction;
+  /*
+   * Render-on-demand: loop rAF hanya hidup saat tween, overlay jam, atau drag
+   * aktif. Saat idle/dijeda tidak ada frame sama sekali (0 FPS) sehingga
+   * baterai ponsel tidak terkuras. Ukuran + DPR diurus ResizeObserver internal.
+   */
+  const { invalidate } = useOnDemandFrame({
+    observe: canvasRef,
+    onFrame: ({ delta: deltaTime, viewport }) => {
+      const canvas = canvasRef.current;
+      const config = configRef.current;
+      if (!canvas || !config) return false;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
+
+      const width = Math.max(220, viewport.width);
+      const height = Math.max(220, viewport.height);
+      /* DPR dibatasi 2: garis dan teks tetap tajam tanpa membebani fill-rate. */
+      const dpr = Math.min(viewport.dpr || 1, 2);
+      const pixelWidth = Math.round(width * dpr);
+      const pixelHeight = Math.round(height * dpr);
+
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      /* Klem dt: tab yang dibekukan tidak boleh membuat fisika melompat. */
+      const safeDt = Math.min(Math.max(deltaTime, 0), 64);
+      let animating = false;
+
+      /* Alpha decay berbasis dt: kecepatan easing sama di 60Hz maupun 120Hz. */
+      const target = config.userAngle;
+      if (reducedMotionRef.current) {
+        animatedUserAngleRef.current = target;
+      } else {
+        const diff = target - animatedUserAngleRef.current;
+        if (Math.abs(diff) > 0.02) {
+          const alpha = 1 - Math.pow(1 - 0.18, Math.max(safeDt, 1) / (1000 / 60));
+          animatedUserAngleRef.current += diff * alpha;
+          if (Math.abs(target - animatedUserAngleRef.current) <= 0.02) {
+            animatedUserAngleRef.current = target;
+          }
+          animating = true;
+        } else if (animatedUserAngleRef.current !== target) {
+          animatedUserAngleRef.current = target;
+        }
+      }
+
+      /* Jarum overlay jam: sapuan kontinu, berhenti total saat dijeda/off-screen. */
+      if (clockModeRef.current && clockPlayingRef.current && visibleRef.current) {
+        clockSweepAngleRef.current =
+          (clockSweepAngleRef.current + (CLOCK_SWEEP_SPEED * safeDt) / 1000) % 360;
+        animating = true;
+      }
+
+      /* Halo berdenyut saat drag butuh frame kontinu. */
+      if (interactionRef.current.drag !== 'none') animating = true;
+
+      const layout = frozenLayoutRef.current ?? computeLayout(width, height, config.state);
+      const geometry = computeSceneGeometry(width, height, config.state, layout);
+      const dialKey = clockModeRef.current
+        ? `${Math.round(geometry.centerX)}:${Math.round(geometry.centerY)}:${Math.round(geometry.dialRadius)}`
+        : 'off';
+      const layerKey = [
+        width.toFixed(1),
+        height.toFixed(1),
+        dpr,
+        config.dark ? 'dark' : 'light',
+        layout.scale.toFixed(3),
+        layout.originX.toFixed(1),
+        layout.originY.toFixed(1),
+        dialKey,
+      ].join('|');
+
+      const staticLayer = getStaticLayer(staticLayerRef, layerKey, width, height, dpr, (layerCtx) => {
+        drawSceneStatic(layerCtx, width, height, config, layout, clockModeRef.current);
+      });
+
+      renderScene(ctx, width, height, config, animatedUserAngleRef.current, layout, {
+        interaction: interactionRef.current,
+        pulse: reducedMotionRef.current ? 0 : (performance.now() % 1200) / 1200,
+        clock: clockModeRef.current ? { angle: clockSweepAngleRef.current } : undefined,
+        staticLayer: staticLayer ?? undefined,
+      });
+
+      return animating;
+    },
+  });
+
+  /* `userAngle` hanya berasal dari slider/drag; jarum jam punya ref sendiri. */
+  const userAngle = state.angleDegree * state.direction;
   const radiusBefore = Math.hypot(state.point.x - state.center.a, state.point.y - state.center.b);
-  const rotatedPoint = rotatePoint(state.point, state.center, targetAngle);
+  const rotatedPoint = rotatePoint(state.point, state.center, userAngle);
   const radiusAfter = Math.hypot(rotatedPoint.x - state.center.a, rotatedPoint.y - state.center.b);
   const radiusDelta = trim(radiusAfter - radiusBefore, 2);
 
@@ -583,7 +887,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       setAnnouncement(
         `Titik P (${formatNumber(state.point.x)}, ${formatNumber(state.point.y)}). ` +
           `Pusat (${formatNumber(state.center.a)}, ${formatNumber(state.center.b)}). ` +
-          `Sudut ${angleLabel(targetAngle)}. ` +
+          `Sudut ${angleLabel(userAngle)}. ` +
           `Bayangan P′ (${formatNumber(rotatedPoint.x)}, ${formatNumber(rotatedPoint.y)}).`
       );
     }, 350);
@@ -594,7 +898,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
     state.point.y,
     state.center.a,
     state.center.b,
-    targetAngle,
+    userAngle,
     rotatedPoint.x,
     rotatedPoint.y,
   ]);
@@ -606,16 +910,51 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
   useEffect(() => {
     configRef.current = {
       state,
-      targetAngle: state.angleDegree * state.direction,
+      userAngle: state.angleDegree * state.direction,
       dark: theme === 'dark',
     };
-    dirtyRef.current = true;
-  }, [state, theme]);
+    invalidate();
+  }, [state, theme, invalidate]);
 
   useEffect(() => {
     interactionRef.current = { drag: dragTarget, hover: hoverTarget };
-    dirtyRef.current = true;
-  }, [dragTarget, hoverTarget]);
+    invalidate();
+  }, [dragTarget, hoverTarget, invalidate]);
+
+  /* Prop `clockOverlay` menjadi nilai awal; tombol toolbar tetap bisa menimpanya. */
+  useEffect(() => {
+    setClockMode(Boolean(clockOverlay));
+  }, [clockOverlay]);
+
+  useEffect(() => {
+    clockModeRef.current = clockMode;
+    invalidate();
+  }, [clockMode, invalidate]);
+
+  useEffect(() => {
+    clockPlayingRef.current = clockPlaying;
+    invalidate();
+  }, [clockPlaying, invalidate]);
+
+  /* Hentikan jarum overlay ketika kanvas keluar dari viewport. */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const visible = entry.isIntersecting;
+        if (visibleRef.current === visible) return;
+        visibleRef.current = visible;
+        invalidate();
+      },
+      { threshold: 0.01 }
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [invalidate]);
 
   /* Preferensi gerak: lompat langsung ke sudut target, tanpa easing maupun pulse. */
   useEffect(() => {
@@ -624,106 +963,16 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       reducedMotionRef.current = query.matches;
       const config = configRef.current;
       if (query.matches && config) {
-        animatedRef.current = config.targetAngle;
+        animatedUserAngleRef.current = config.userAngle;
       }
-      dirtyRef.current = true;
+      invalidate();
     };
 
     apply();
     query.addEventListener('change', apply);
 
     return () => query.removeEventListener('change', apply);
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return undefined;
-
-    /* Ukuran CSS di-cache: loop rAF tidak lagi memicu layout read setiap frame. */
-    const initial = canvas.getBoundingClientRect();
-    sizeRef.current = { width: initial.width, height: initial.height };
-
-    let frame = 0;
-    let lastWidth = 0;
-    let lastHeight = 0;
-    let lastDpr = 0;
-
-    const draw = () => {
-      const config = configRef.current;
-      if (!config) return;
-
-      const { width: measuredWidth, height: measuredHeight } = sizeRef.current;
-      if (measuredWidth < 1 || measuredHeight < 1) return;
-
-      const width = Math.max(220, measuredWidth);
-      const height = Math.max(220, measuredHeight);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      if (lastWidth !== width || lastHeight !== height || lastDpr !== dpr) {
-        canvas.width = Math.round(width * dpr);
-        canvas.height = Math.round(height * dpr);
-        lastWidth = width;
-        lastHeight = height;
-        lastDpr = dpr;
-      }
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const layout = frozenLayoutRef.current ?? computeLayout(width, height, config.state);
-      renderScene(ctx, width, height, config, animatedRef.current, layout, {
-        interaction: interactionRef.current,
-        pulse: reducedMotionRef.current ? 0 : (performance.now() % 1200) / 1200,
-      });
-    };
-
-    const tick = () => {
-      const config = configRef.current;
-      if (config) {
-        if (reducedMotionRef.current) {
-          if (animatedRef.current !== config.targetAngle) {
-            animatedRef.current = config.targetAngle;
-            dirtyRef.current = true;
-          }
-        } else {
-          const diff = config.targetAngle - animatedRef.current;
-          if (Math.abs(diff) > 0.02) {
-            animatedRef.current += diff * 0.18;
-            dirtyRef.current = true;
-          } else if (animatedRef.current !== config.targetAngle) {
-            animatedRef.current = config.targetAngle;
-            dirtyRef.current = true;
-          }
-        }
-      }
-
-      if (interactionRef.current.drag !== 'none') dirtyRef.current = true;
-
-      if (dirtyRef.current) {
-        draw();
-        dirtyRef.current = false;
-      }
-
-      frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      sizeRef.current = { width: entry.contentRect.width, height: entry.contentRect.height };
-      dirtyRef.current = true;
-    });
-    observer.observe(canvas);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, []);
+  }, [invalidate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -739,12 +988,18 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       };
     };
 
-    const startDragging = (px: number, py: number, width: number, height: number): boolean => {
+    const startDragging = (
+      px: number,
+      py: number,
+      width: number,
+      height: number,
+      radius = HIT_RADIUS
+    ): boolean => {
       const config = configRef.current;
       if (!config) return false;
 
       const layout = computeLayout(width, height, config.state);
-      const target = resolveHandle(layout, config.state, px, py);
+      const target = resolveHandle(layout, config.state, px, py, radius);
       if (target === 'none') return false;
 
       const anchor = shapeVertices(config.state.shape, config.state.point)[0];
@@ -757,7 +1012,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       frozenLayoutRef.current = layout;
       setDragTarget(target);
       setHoverTarget(target);
-      dirtyRef.current = true;
+      invalidate();
       return true;
     };
 
@@ -777,14 +1032,19 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       } else {
         onChangeRef.current({ center: { a: snapToHalf(world.x), b: snapToHalf(world.y) } });
       }
+      /* Jangan menunggu re-render React: kanvas langsung menyusul jari. */
+      invalidate();
     };
 
     const endDragging = () => {
-      if (!dragRef.current) return;
+      const session = dragRef.current;
+      if (!session) return;
       dragRef.current = null;
       frozenLayoutRef.current = null;
       setDragTarget('none');
-      dirtyRef.current = true;
+      /* Di layar sentuh tidak ada hover: hilangkan cincin setelah jari diangkat. */
+      if (session.touchId !== undefined) setHoverTarget('none');
+      invalidate();
     };
 
     const onMouseDown = (event: MouseEvent) => {
@@ -811,7 +1071,11 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
         local.x,
         local.y
       );
-      setHoverTarget((previous) => (previous === nextHover ? previous : nextHover));
+      setHoverTarget((previous) => {
+        if (previous === nextHover) return previous;
+        invalidate();
+        return nextHover;
+      });
     };
 
     const onMouseUp = () => {
@@ -828,23 +1092,36 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       if (!touch) return;
 
       const local = localPoint(touch.clientX, touch.clientY);
-      if (startDragging(local.x, local.y, local.width, local.height)) {
+      /*
+       * Hanya sentuhan yang mendarat di hit-box kontrol (radius 28px) yang
+       * di-preventDefault. Di luar itu, pan-y membiarkan halaman scroll normal.
+       */
+      if (startDragging(local.x, local.y, local.width, local.height, TOUCH_HIT_RADIUS)) {
+        if (dragRef.current) dragRef.current.touchId = touch.identifier;
         event.preventDefault();
       }
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      if (!dragRef.current) return;
-      const touch = event.touches[0];
+      const session = dragRef.current;
+      if (!session) return;
+
+      const touch = Array.from(event.touches).find((item) => item.identifier === session.touchId);
       if (!touch) return;
 
+      /* Selama drag aktif, cegah scroll; touch-action: pan-y mengizinkannya di luar handle. */
       event.preventDefault();
       const local = localPoint(touch.clientX, touch.clientY);
       moveDragging(local.x, local.y);
     };
 
-    const onTouchEnd = () => {
-      endDragging();
+    const onTouchEnd = (event: TouchEvent) => {
+      const session = dragRef.current;
+      if (!session) return;
+      const stillActive = Array.from(event.touches).some(
+        (item) => item.identifier === session.touchId
+      );
+      if (!stillActive) endDragging();
     };
 
     canvas.addEventListener('mousedown', onMouseDown);
@@ -896,9 +1173,13 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       width,
       height,
       { ...config, dark: exportDark },
-      config.targetAngle,
+      config.userAngle,
       computeLayout(width, height, config.state),
-      { background: exportDark ? '#020617' : '#ffffff', watermark: true }
+      {
+        background: exportDark ? '#020617' : '#ffffff',
+        watermark: true,
+        clock: clockModeRef.current ? { angle: clockSweepAngleRef.current } : undefined,
+      }
     );
 
     const suffix = `${formatNumber(config.state.point.x)}_${formatNumber(config.state.point.y)}`.replace(
@@ -960,11 +1241,37 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
           <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-            θ = {angleLabel(targetAngle)}
+            θ{clockMode ? ' manual' : ''} = {angleLabel(userAngle)}
           </span>
           <span className="hidden rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-indigo-700 sm:inline dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-300">
-            {targetAngle >= 0 ? 'berlawanan jarum jam' : 'searah jarum jam'}
+            {userAngle >= 0 ? 'berlawanan jarum jam' : 'searah jarum jam'}
           </span>
+          <button
+            type="button"
+            onClick={() => setClockMode((previous) => !previous)}
+            aria-pressed={clockMode}
+            title="Tampilkan overlay jam/kompas yang menyapu kontinu di kanvas"
+            className={
+              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-sans text-[11px] font-bold shadow-sm transition ' +
+              (clockMode
+                ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:text-amber-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-amber-500/50 dark:hover:text-amber-300')
+            }
+          >
+            <Timer size={13} /> Mode jam
+          </button>
+          {clockMode && (
+            <button
+              type="button"
+              onClick={() => setClockPlaying((previous) => !previous)}
+              aria-pressed={!clockPlaying}
+              title={clockPlaying ? 'Jeda jarum jam (0 FPS)' : 'Putar jarum jam'}
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 font-sans text-[11px] font-bold text-amber-700 shadow-sm transition hover:border-amber-300 dark:border-amber-500/30 dark:bg-slate-950 dark:text-amber-300 dark:hover:border-amber-500/60"
+            >
+              {clockPlaying ? <Pause size={12} /> : <Play size={12} />}
+              <span className="sr-only">{clockPlaying ? 'Jeda jarum jam' : 'Putar jarum jam'}</span>
+            </button>
+          )}
           <label
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-sans text-[11px] font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300"
             title="Unduh PNG berlatar putih jernih, khusus untuk cetak"
@@ -990,13 +1297,25 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
       </div>
 
       <div className="relative h-[330px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner transition-colors sm:h-[420px] lg:h-[470px] dark:border-slate-800/80 dark:bg-slate-950">
+        {/* pan-y: scroll halaman tetap normal di area kanvas yang kosong. */}
         <canvas
           ref={canvasRef}
-          className={`absolute inset-0 h-full w-full ${cursorClass}`}
+          className={`absolute inset-0 h-full w-full touch-pan-y select-none ${cursorClass}`}
           role="img"
           aria-describedby="canvas-hint"
           aria-label="Bidang kartesius interaktif dengan busur derajat; tarik titik P atau pusat rotasi untuk memindahkannya"
         />
+
+        {clockMode && (
+          <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-semibold shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-none">
+            <span className="inline-flex items-center gap-1 text-violet-700 dark:text-violet-300">
+              <span className="h-2 w-2 rounded-full bg-violet-500" /> θ manual
+            </span>
+            <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> θ jam
+            </span>
+          </div>
+        )}
 
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
           <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300 dark:shadow-none">
@@ -1014,7 +1333,7 @@ function RotationCanvas({ state, theme, onChange }: RotationCanvasProps) {
           id="canvas-hint"
           className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-400 dark:shadow-none"
         >
-          Tarik titik P atau pusat · atur sudut lewat slider
+          Tarik titik P atau pusat · sentuh & geser di HP · atur sudut lewat slider
         </div>
 
         <div className="pointer-events-none absolute bottom-3 right-3 hidden rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 shadow-sm sm:block dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-none">

@@ -44,8 +44,8 @@ Kanvas HTML5 2D yang benar-benar bisa dimanipulasi, bukan gambar statis.
 | Kemampuan | Detail implementasi |
 | --- | --- |
 | **High-DPI 2×** | `devicePixelRatio` dibatasi maksimum 2, lalu `ctx.setTransform(dpr, …)` menjaga garis tetap tajam di layar Retina. |
-| **Mouse & touch** | `mousedown/mousemove/mouseup/mouseleave` + `touchstart/touchmove/touchend/touchcancel` dengan `{ passive: false }`, sehingga `preventDefault()` mencegah halaman ikut ter-scroll saat menyeret di ponsel. |
-| **Hit-testing 18px** | Kursor dikonversi ke koordinat Kartesius lewat `pxToWorld()`, lalu jarak ke pegangan titik dan pusat diukur; pegangan terdekat dalam radius 18px yang menang. |
+| **Mouse & touch** | `mousedown/mousemove/mouseup/mouseleave` + `touchstart/touchmove/touchend/touchcancel` dengan `{ passive: false }`. `touch-action: pan-y` membuat halaman tetap bisa di-scroll; `preventDefault()` hanya dipanggil saat jari mendarat di hit-box kontrol. ID touch aktif dilacak agar multi-touch tidak mengacaukan drag. |
+| **Hit-area 44px** | Kursor/jari dikonversi ke koordinat Kartesius lewat `pxToWorld()`, lalu jarak ke pegangan titik dan pusat diukur. Radius 22px untuk mouse dan 28px untuk sentuhan, sehingga target selalu ≥ 44×44px. |
 | **Presisi 0,5** | `snapToHalf()` membulatkan koordinat ke kelipatan `0.5`, dan `trim()` menormalkan `-0` menjadi `0`. |
 | **Anti-jitter** | `frozenLayoutRef` membekukan skala & origin selama drag, sehingga kamera tidak "mengejar" kursor; bidang di-fit ulang setelah pointer dilepas. |
 | **Umpan balik visual** | Kursor `cursor-grab` saat hover dan `cursor-grabbing` saat menyeret, plus halo/glow berdenyut yang digambar langsung di kanvas pada pegangan aktif. |
@@ -101,7 +101,39 @@ Tombol **Unduh Gambar** tidak sekadar menyalin kanvas yang terlihat:
 - Menyimpan sebagai `rotasi-geometri-[x]_[y].png` (desimal ditulis dengan koma, mengikuti notasi Indonesia).
 - Diekspor pada sudut final, bukan sudut animasi di tengah jalan.
 
-### 🎯 6. Quiz Engine Interaktif
+### 🕰️ 6. Konteks Dunia Nyata Beranimasi
+
+Empat visualisasi kanvas yang bergerak terus-menerus seperti jarum jam:
+
+| Mode | Pusat | Animasi |
+| --- | --- | --- |
+| **Jam & Kompas** | `O(0, 0)` | Jarum menit menyapu 360°, ujung jarum menampilkan koordinat `P′` real-time. |
+| **Kincir Ria** | `P₀(1.15, −0.55)` | 8 kabin berputar mengelilingi poros; kabin terpilih menyisakan busur jejak. |
+| **Turbin Angin** | `P₀(−1.35, 0.95)` | 3 bilah berputar dengan sudut 120°; ujung bilah utama diberi label koordinat. |
+| **Simetri Motif** | `O(0, 0)` | Motif batik disapu kontinu; setiap langkah 45°/60°/90° meninggalkan bayangan dan busur simetri putar. |
+
+Semua layer memakai `useSweepRotation()`: kecepatan diinterpolasi dengan alpha decay berbasis `dt`,
+dan loop rAF dimatikan total (0 FPS) ketika animasi dijeda. Kanvas merender ulang dengan
+`devicePixelRatio` (maks. 2) melalui `ResizeObserver`.
+
+```tsx
+import RealWorldCanvas from './components/RealWorldCanvas';
+
+<RealWorldCanvas mode="clock" theme={theme} />
+```
+
+Ingin lapisan jam yang sama di kanvas utama? Cukup aktifkan prop `clockOverlay`:
+
+```tsx
+<RotationCanvas
+  state={state}
+  theme={theme}
+  onChange={updateState}
+  clockOverlay // jarum menyapu kontinu + label P′
+/>
+```
+
+### 🎯 7. Quiz Engine Interaktif
 
 - **5 soal** yang diacak dari lima tipe: sudut istimewa di titik asal, setengah putaran, pusat kustom, rotasi bangun datar, dan rotasi searah jarum jam.
 - Nilai soal di-generate acak, pengecoh dibuat dari kesalahan yang paling umum (lupa menambahkan pusat, tertukar sumbu, salah arah).
@@ -109,7 +141,7 @@ Tombol **Unduh Gambar** tidak sekadar menyalin kanvas yang terlihat:
 - Jawaban salah menampilkan tombol **“Tampilkan di Canvas”** yang mengunci state soal tersebut ke visualizer dan melakukan *smooth scroll* ke kanvas — jembatan langsung dari kesalahan menuju pembuktian visual.
 - Skor akhir dengan indikator per soal dan tombol **“Ulangi dengan soal baru”**.
 
-### 📴 7. 100% Offline PWA
+### 📴 8. 100% Offline PWA
 
 Seluruh aplikasi — JS, CSS, ikon, dan **font KaTeX yang di-bundle lokal** — di-precache oleh Workbox. Tidak ada permintaan ke Google Fonts atau CDN mana pun; tipografi memakai system font stack. Setelah kunjungan pertama, RotasiLab dapat dibuka tanpa koneksi dan tetap menampilkan seluruh rumus, kanvas, serta kuis.
 
@@ -258,19 +290,19 @@ safeSin(180)  // 0
 trim(-0)      // 0
 ```
 
-**2. Animasi dengan easing interpolation**
+**2. Animasi dengan alpha decay berbasis `dt`**
 
-Sudut tidak berpindah secara instan. Setiap frame, selisih sudut didekati secara eksponensial:
+Sudut tidak berpindah secara instan. Setiap frame, selisih sudut didekati secara eksponensial
+dengan porsi yang bergantung pada jarak waktu antar-frame, bukan jumlah frame:
 
 ```ts
-const diff = targetAngle - animatedAngle;
-if (Math.abs(diff) > 0.02) {
-  animatedAngle += diff * 0.18;   // ease-out alami
-  dirty = true;
-}
+const alpha = 1 - Math.pow(1 - 0.18, deltaMs / (1000 / 60));
+animatedAngle += (targetAngle - animatedAngle) * alpha;
 ```
 
-Render hanya dilakukan ketika ada perubahan (`dirty` flag) — hemat CPU saat idle.
+Hasilnya sama mulus di layar 60Hz maupun 120Hz/VRR. Kanvas memakai `useOnDemandFrame()`:
+loop rAF hanya hidup selama tween, drag, atau animasi konteks berjalan, lalu berhenti total
+(0 FPS) ketika idle/dijeda.
 
 **3. Layout & konversi koordinat**
 

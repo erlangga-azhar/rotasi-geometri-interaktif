@@ -14,6 +14,15 @@ export const DEFAULT_STATE: RotationState = {
 export const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+/**
+ * Normalisasi sudut ke rentang [0, 360).
+ * Rumus `((deg % 360) + 360) % 360` aman untuk sudut negatif maupun > 360.
+ */
+export function normalizeDegree(deg: number): number {
+  if (!Number.isFinite(deg)) return 0;
+  return ((deg % 360) + 360) % 360;
+}
+
 /** Membulatkan sekaligus menormalkan -0 menjadi 0. */
 export const trim = (value: number, precision = 4): number => {
   const rounded = Number(Number(value).toFixed(precision));
@@ -24,7 +33,7 @@ export const trim = (value: number, precision = 4): number => {
  * cosinus dengan toleransi floating point: cos(90°) harus tepat 0.
  */
 export function safeCos(deg: number): number {
-  const value = Math.cos(deg * DEG);
+  const value = Math.cos(normalizeDegree(deg) * DEG);
   if (Math.abs(value) < EPSILON) return 0;
   if (Math.abs(value - 1) < EPSILON) return 1;
   if (Math.abs(value + 1) < EPSILON) return -1;
@@ -35,7 +44,7 @@ export function safeCos(deg: number): number {
  * sinus dengan toleransi floating point: sin(180°) harus tepat 0.
  */
 export function safeSin(deg: number): number {
-  const value = Math.sin(deg * DEG);
+  const value = Math.sin(normalizeDegree(deg) * DEG);
   if (Math.abs(value) < EPSILON) return 0;
   if (Math.abs(value - 1) < EPSILON) return 1;
   if (Math.abs(value + 1) < EPSILON) return -1;
